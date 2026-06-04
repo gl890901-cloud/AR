@@ -1,909 +1,685 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Model Manager - Creador y Visualizador 3D</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        .manager-mode {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            padding: 40px 20px;
-            color: white;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 24px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        .input-group {
-            margin-bottom: 25px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 14px;
-            transition: all 0.3s;
-            background: white;
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .preview-container {
-            background: #f5f5f5;
-            border-radius: 16px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .model-preview {
-            min-height: 300px;
-            height: 300px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #e0e0e0;
-            border-radius: 12px;
-            margin-top: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .model-preview canvas {
-            width: 100% !important;
-            height: 100% !important;
-            display: block;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 40px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .qr-result {
-            text-align: center;
-            padding: 20px;
-        }
-
-        .qr-box {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            display: inline-block;
-            margin: 20px 0;
-        }
-
-        .qr-box img {
-            margin: 0 auto;
-        }
-
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-size: 14px;
-            text-align: left;
-        }
-
-        .model-list {
-            display: grid;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .model-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .model-item:hover {
-            background: #e9ecef;
-            transform: translateX(5px);
-        }
-
-        .model-info {
-            flex: 1;
-            overflow: hidden;
-            padding-right: 10px;
-        }
-
-        .model-name {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .model-url {
-            font-size: 12px;
-            color: #666;
-            font-family: monospace;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .delete-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: white;
-            padding: 15px 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1000;
-            display: none;
-            color: white;
-            font-weight: 600;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 12px;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            color: white;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .tab.active {
-            background: white;
-            color: #667eea;
-        }
-
-        @media (max-width: 768px) {
-            .manager-mode { padding: 10px; }
-            .header h1 { font-size: 1.8rem; }
-            .card { padding: 20px; }
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
-            }
-        }
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AR Model Manager Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;overflow-x:hidden}
+.manager{max-width:1100px;margin:0 auto;padding:16px}
+.header{text-align:center;padding:28px 16px 20px;color:white}
+.header h1{font-size:2rem;margin-bottom:6px;text-shadow:2px 2px 8px rgba(0,0,0,0.25)}
+.header p{font-size:1rem;opacity:.88}
+.card{background:rgba(255,255,255,.97);border-radius:20px;padding:24px;margin-bottom:20px;box-shadow:0 16px 48px rgba(0,0,0,0.25)}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tab{flex:1;padding:11px;background:rgba(255,255,255,.2);border:none;border-radius:12px;cursor:pointer;color:white;font-weight:600;font-size:14px;transition:all .3s}
+.tab.active{background:white;color:#667eea}
+.input-group{margin-bottom:16px}
+.input-group label{display:block;margin-bottom:5px;font-weight:600;color:#444;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.input-group input,.input-group select{width:100%;padding:12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;transition:all .3s;background:white;color:#333}
+.input-group input:focus,.input-group select:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+.preview-box{background:#f0f0f0;border-radius:14px;overflow:hidden;position:relative;height:280px;margin:12px 0}
+.preview-box canvas{width:100%!important;height:100%!important}
+.preview-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;text-align:center;padding:20px}
+.btn{background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;padding:13px 24px;border-radius:40px;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;width:100%;margin-top:8px}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.btn-sec{background:linear-gradient(135deg,#f093fb,#f5576c)}
+.btn-sm{font-size:13px;padding:9px 16px;width:auto;margin-top:0}
+.btn-danger{background:#dc3545}
+.transform-panel{background:#f8f8f8;border-radius:14px;padding:16px;margin:12px 0}
+.transform-panel h3{font-size:13px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+.transform-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.transform-item{display:flex;flex-direction:column;gap:4px}
+.transform-item label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase}
+.transform-item input[type=range]{width:100%;accent-color:#667eea;cursor:pointer}
+.transform-item .val{font-size:12px;font-weight:700;color:#667eea;text-align:center}
+.qr-result{text-align:center;padding:12px 0}
+.qr-box{background:white;padding:16px;border-radius:14px;display:inline-block;border:1.5px solid #eee;margin:12px 0}
+.info-box{background:#e3f2fd;border-left:4px solid #2196f3;padding:13px;border-radius:8px;margin:14px 0;font-size:13px;text-align:left;color:#333}
+.model-item{background:#f8f9fa;padding:13px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all .3s;margin-bottom:8px}
+.model-item:hover{background:#e9ecef;transform:translateX(4px)}
+.model-name{font-weight:600;color:#333;font-size:14px}
+.model-url{font-size:11px;color:#888;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.notif{position:fixed;top:16px;right:16px;padding:12px 18px;border-radius:10px;font-weight:600;font-size:14px;color:white;z-index:9999;display:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.section-title{font-size:16px;font-weight:700;color:#333;margin-bottom:14px}
+@media(max-width:600px){.transform-row{grid-template-columns:1fr 1fr}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
 </head>
 <body>
+<div class="manager" id="app">
+  <div class="header">
+    <h1>🎨 AR Model Manager Pro</h1>
+    <p>Configura posición, rotación y escala — el QR actúa como marcador de tracking AR</p>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="tab1">✨ Crear QR AR</button>
+    <button class="tab" id="tab2">📚 Mis Modelos</button>
+  </div>
 
-    <div class="manager-mode" id="managerMode">
-        <div class="header">
-            <h1>🎨 AR Model Manager</h1>
-            <p>Gestiona modelos 3D y genera códigos QR válidos para visualización en Realidad Aumentada</p>
-        </div>
-
-        <div class="tabs">
-            <button class="tab active" id="tabCreateBtn">✨ Crear Nuevo QR</button>
-            <button class="tab" id="tabListBtn">📚 Mis Modelos</button>
-        </div>
-
-        <div id="createTab">
-            <div class="card">
-                <h2 style="margin-bottom: 20px; color: #333;">📦 Configuración del Modelo</h2>
-                 
-                <div class="input-group">
-                    <label>🔗 URL del modelo en GitHub</label>
-                    <input type="text" id="modelUrl" placeholder="https://github.com/usuario/repo/blob/main/modelo.glb">
-                    <small style="color: #666; display: block; margin-top: 5px;">
-                        Soporta: <strong>.glb</strong> (recomendado) o <strong>.gltf</strong>. <br>
-                        Ejemplo: https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/RobotExpressive.glb
-                    </small>
-                </div>
-
-                <div class="input-group">
-                    <label>🏷️ Nombre del modelo (opcional)</label>
-                    <input type="text" id="modelName" placeholder="Mi Modelo 3D">
-                </div>
-
-                <div class="preview-container">
-                    <label>📸 Previsualización Interactiva</label>
-                    <div class="model-preview" id="modelPreview">
-                        <div id="previewPlaceholder" style="color: #999; padding: 20px;">Ingresa una URL de GitHub y presiona "Previsualizar Modelo"</div>
-                    </div>
-                </div>
-
-                <button class="btn" id="previewBtn">🔍 Previsualizar Modelo</button>
-                <button class="btn" id="generateBtn" style="margin-top: 15px;">🎯 Generar Código AR</button>
-            </div>
-
-            <div class="card" id="qrResultCard" style="display: none;">
-                <h2 style="margin-bottom: 20px; color: #333;">📱 Código QR para Realidad Aumentada</h2>
-                <div class="qr-result">
-                    <div class="qr-box" id="qrcode"></div>
-                    <button class="btn btn-secondary" id="downloadQRBtn">💾 Descargar QR</button>
-                    <button class="btn" id="copyLinkBtn">🔗 Copiar enlace AR</button>
-                    
-                    <div class="info-box">
-                        <strong>📌 Instrucciones:</strong><br>
-                        1. Escanea este código con tu teléfono celular.<br>
-                        2. Se abrirá el visor web en tu navegador móvil.<br>
-                        3. Haz clic en "📷 Activar Realidad Aumentada" para proyectar el modelo 3D usando la cámara trasera sobre cualquier plano.
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="listTab" style="display: none;">
-            <div class="card">
-                <h2 style="margin-bottom: 20px; color: #333;">📚 Modelos Guardados</h2>
-                <div id="modelList" class="model-list">
-                    <p style="color: #999; text-align: center;">No hay modelos guardados.</p>
-                </div>
-                <button class="btn btn-secondary" id="clearAllBtn">🗑️ Limpiar biblioteca</button>
-            </div>
-        </div>
+  <div id="createPane">
+    <div class="card">
+      <div class="section-title">📦 Modelo 3D</div>
+      <div class="input-group">
+        <label>URL del modelo (GitHub, raw, jsDelivr…)</label>
+        <input type="text" id="modelUrl" placeholder="https://github.com/usuario/repo/blob/main/modelo.glb">
+        <small style="color:#888;display:block;margin-top:4px;font-size:12px">Formatos: .glb / .gltf — acceso público requerido</small>
+      </div>
+      <div class="input-group">
+        <label>Nombre del modelo</label>
+        <input type="text" id="modelName" placeholder="Mi Modelo 3D">
+      </div>
+      <div class="preview-box" id="previewBox">
+        <div class="preview-placeholder" id="pholder">Ingresa una URL y presiona "Previsualizar"</div>
+      </div>
+      <button class="btn" id="previewBtn">🔍 Previsualizar Modelo</button>
     </div>
 
-    <div id="notification" class="notification"></div>
+    <div class="card">
+      <div class="section-title">🎛️ Transformaciones del Modelo en AR</div>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">Ajusta cómo aparece el modelo <strong>sobre el QR</strong> cuando se escanee con el visor AR.</p>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+      <div class="transform-panel">
+        <h3>📍 Posición (metros sobre el marcador)</h3>
+        <div class="transform-row">
+          <div class="transform-item">
+            <label>X (izq/der)</label>
+            <input type="range" id="px" min="-2" max="2" step="0.01" value="0">
+            <div class="val" id="px-v">0.00</div>
+          </div>
+          <div class="transform-item">
+            <label>Y (arriba)</label>
+            <input type="range" id="py" min="0" max="3" step="0.01" value="0.5">
+            <div class="val" id="py-v">0.50</div>
+          </div>
+          <div class="transform-item">
+            <label>Z (frente/atrás)</label>
+            <input type="range" id="pz" min="-2" max="2" step="0.01" value="0">
+            <div class="val" id="pz-v">0.00</div>
+          </div>
+        </div>
+      </div>
 
-        let savedModels = [];
-        let previewScene, previewCamera, previewRenderer, previewControls, currentPreviewModel;
+      <div class="transform-panel">
+        <h3>🔄 Rotación (grados)</h3>
+        <div class="transform-row">
+          <div class="transform-item">
+            <label>Rot X</label>
+            <input type="range" id="rx" min="-180" max="180" step="1" value="0">
+            <div class="val" id="rx-v">0°</div>
+          </div>
+          <div class="transform-item">
+            <label>Rot Y</label>
+            <input type="range" id="ry" min="-180" max="180" step="1" value="0">
+            <div class="val" id="ry-v">0°</div>
+          </div>
+          <div class="transform-item">
+            <label>Rot Z</label>
+            <input type="range" id="rz" min="-180" max="180" step="1" value="0">
+            <div class="val" id="rz-v">0°</div>
+          </div>
+        </div>
+      </div>
 
-        // Convertir URL de GitHub a URL raw usando jsDelivr CDN (solución CORS)
-        function convertToRawUrl(url) {
-            let rawUrl = url.trim();
-            
-            // Detectar si es URL de GitHub
-            if (rawUrl.includes('github.com')) {
-                // Limpiar la URL para el formato de jsDelivr
-                let cleanUrl = rawUrl
-                    .replace('https://github.com/', '')
-                    .replace('http://github.com/', '')
-                    .replace('raw.githubusercontent.com/', '');
-                
-                // Si tiene /blob/, lo removemos
-                cleanUrl = cleanUrl.replace('/blob/', '/');
-                
-                return `https://cdn.jsdelivr.net/gh/${cleanUrl}`;
-            }
-            
-            return rawUrl;
-        }
+      <div class="transform-panel">
+        <h3>📏 Escala</h3>
+        <div class="transform-row">
+          <div class="transform-item">
+            <label>Escala X</label>
+            <input type="range" id="sx" min="0.1" max="5" step="0.05" value="1">
+            <div class="val" id="sx-v">1.00×</div>
+          </div>
+          <div class="transform-item">
+            <label>Escala Y</label>
+            <input type="range" id="sy" min="0.1" max="5" step="0.05" value="1">
+            <div class="val" id="sy-v">1.00×</div>
+          </div>
+          <div class="transform-item">
+            <label>Escala Z</label>
+            <input type="range" id="sz" min="0.1" max="5" step="0.05" value="1">
+            <div class="val" id="sz-v">1.00×</div>
+          </div>
+        </div>
+      </div>
 
-        // Inicializar motor de previsualización
-        function initPreviewEngine() {
-            const container = document.getElementById('modelPreview');
-            if(!container) return;
-            
-            if(previewRenderer) {
-                // Limpiar renderer existente
-                while(container.firstChild) container.removeChild(container.firstChild);
-                previewRenderer = null;
-            }
+      <button class="btn" style="margin-top:4px" id="resetTransformBtn">↺ Resetear transformaciones</button>
+    </div>
 
-            const placeholder = document.getElementById('previewPlaceholder');
-            if(placeholder) placeholder.style.display = 'none';
+    <div class="card">
+      <div class="section-title">📱 Generar Código QR Marcador AR</div>
+      <div class="info-box">
+        <strong>🧭 Cómo funciona el tracking por QR:</strong><br>
+        El QR generado sirve como <em>marcador físico</em>. Al escanearlo con el visor AR, la cámara detecta el QR en el mundo real y ancla el modelo 3D exactamente sobre él, con la posición/rotación/escala que configuraste.
+      </div>
+      <button class="btn btn-sec" id="generateBtn">🎯 Generar Código QR AR</button>
 
-            previewScene = new THREE.Scene();
-            previewScene.background = new THREE.Color(0xededed);
-            previewScene.environment = null;
+      <div id="qrCard" style="display:none">
+        <div class="qr-result">
+          <div class="qr-box" id="qrcode"></div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px">Imprime este QR y colócalo en cualquier superficie</p>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            <button class="btn btn-sm" id="dlQRBtn">💾 Descargar QR</button>
+            <button class="btn btn-sm btn-sec" id="copyLinkBtn">🔗 Copiar enlace AR</button>
+          </div>
+        </div>
+        <div class="info-box">
+          <strong>📌 Instrucciones de uso:</strong><br>
+          1. Imprime o muestra el QR en pantalla (mín. 10×10 cm para mejor tracking).<br>
+          2. Escanéalo con cualquier celular — se abrirá el visor AR.<br>
+          3. Apunta la cámara al QR: el modelo 3D aparecerá anclado sobre él.<br>
+          4. Mueve el celular para ver el modelo desde diferentes ángulos.
+        </div>
+      </div>
+    </div>
+  </div>
 
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            
-            previewCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-            previewCamera.position.set(1, 1.5, 2);
-            previewCamera.lookAt(0, 0.5, 0);
+  <div id="listPane" style="display:none">
+    <div class="card">
+      <div class="section-title">📚 Modelos Guardados</div>
+      <div id="modelList"><p style="color:#999;text-align:center;font-size:14px">No hay modelos guardados.</p></div>
+      <button class="btn btn-danger" style="margin-top:8px" id="clearBtn">🗑️ Limpiar biblioteca</button>
+    </div>
+  </div>
+</div>
 
-            previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-            previewRenderer.setSize(width, height);
-            previewRenderer.setPixelRatio(window.devicePixelRatio);
-            previewRenderer.shadowMap.enabled = true;
-            container.appendChild(previewRenderer.domElement);
+<div id="notif" class="notif"></div>
 
-            previewControls = new OrbitControls(previewCamera, previewRenderer.domElement);
-            previewControls.enableDamping = true;
-            previewControls.dampingFactor = 0.05;
-            previewControls.target.set(0, 0.5, 0);
-            previewControls.enableZoom = true;
-            previewControls.zoomSpeed = 1.2;
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 
-            // Luces
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            previewScene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(2, 5, 3);
-            directionalLight.castShadow = true;
-            directionalLight.receiveShadow = true;
-            previewScene.add(directionalLight);
-            
-            const fillLight = new THREE.PointLight(0x4466cc, 0.3);
-            fillLight.position.set(1, 1, 2);
-            previewScene.add(fillLight);
-            
-            const backLight = new THREE.PointLight(0xffaa66, 0.2);
-            backLight.position.set(-1, 1, -2);
-            previewScene.add(backLight);
+let savedModels = [];
+let pvScene, pvCam, pvRend, pvCtrl, pvModel;
+const DEG = Math.PI / 180;
 
-            // Grid helper
-            const gridHelper = new THREE.GridHelper(5, 20, 0x888888, 0xcccccc);
-            gridHelper.position.y = -0.5;
-            previewScene.add(gridHelper);
-            
-            // Eje auxiliar opcional
-            // const axesHelper = new THREE.AxesHelper(1);
-            // previewScene.add(axesHelper);
+function toRaw(url) {
+  let u = url.trim();
+  if (u.includes('github.com') && !u.includes('raw.githubusercontent') && !u.includes('cdn.jsdelivr')) {
+    let c = u.replace('https://github.com/', '').replace('http://github.com/', '');
+    c = c.replace('/blob/', '/');
+    return `https://cdn.jsdelivr.net/gh/${c}`;
+  }
+  return u;
+}
 
-            animatePreview();
-        }
+function getTransforms() {
+  return {
+    px: parseFloat(document.getElementById('px').value),
+    py: parseFloat(document.getElementById('py').value),
+    pz: parseFloat(document.getElementById('pz').value),
+    rx: parseFloat(document.getElementById('rx').value),
+    ry: parseFloat(document.getElementById('ry').value),
+    rz: parseFloat(document.getElementById('rz').value),
+    sx: parseFloat(document.getElementById('sx').value),
+    sy: parseFloat(document.getElementById('sy').value),
+    sz: parseFloat(document.getElementById('sz').value)
+  };
+}
 
-        function animatePreview() {
-            function animate() {
-                requestAnimationFrame(animate);
-                if(previewControls) previewControls.update();
-                if(previewRenderer && previewScene && previewCamera) {
-                    previewRenderer.render(previewScene, previewCamera);
-                }
-            }
-            animate();
-        }
+function setupSliders() {
+  const sliders = [
+    {id:'px',suffix:'',dec:2},{id:'py',suffix:'',dec:2},{id:'pz',suffix:'',dec:2},
+    {id:'rx',suffix:'°',dec:0},{id:'ry',suffix:'°',dec:0},{id:'rz',suffix:'°',dec:0},
+    {id:'sx',suffix:'×',dec:2},{id:'sy',suffix:'×',dec:2},{id:'sz',suffix:'×',dec:2}
+  ];
+  sliders.forEach(s => {
+    const el = document.getElementById(s.id);
+    const vEl = document.getElementById(s.id + '-v');
+    el.addEventListener('input', () => {
+      vEl.textContent = parseFloat(el.value).toFixed(s.dec) + s.suffix;
+      applyTransformToPreview();
+    });
+  });
+}
 
-        // Cargar modelo para previsualización
-        async function loadPreview() {
-            const urlInput = document.getElementById('modelUrl');
-            const url = urlInput.value.trim();
-            
-            if (!url) {
-                showNotification('Ingresa una URL primero', 'error');
-                return;
-            }
+function applyTransformToPreview() {
+  if (!pvModel) return;
+  const t = getTransforms();
+  pvModel.position.set(t.px, t.py, t.pz);
+  pvModel.rotation.set(t.rx * DEG, t.ry * DEG, t.rz * DEG);
+  pvModel.scale.set(t.sx, t.sy, t.sz);
+}
 
-            if (!url.match(/\.(glb|gltf)$/i) && !url.includes('.glb') && !url.includes('.gltf')) {
-                showNotification('El archivo debe ser formato .glb o .gltf', 'error');
-                return;
-            }
+function initPreview() {
+  const c = document.getElementById('previewBox');
+  document.getElementById('pholder').style.display = 'none';
+  while (c.firstChild) c.removeChild(c.firstChild);
+  pvScene = new THREE.Scene();
+  pvScene.background = new THREE.Color(0xebebeb);
+  const w = c.clientWidth, h = c.clientHeight;
+  pvCam = new THREE.PerspectiveCamera(45, w / h, .1, 500);
+  pvCam.position.set(1.5, 1.5, 2.5);
+  pvRend = new THREE.WebGLRenderer({ antialias: true });
+  pvRend.setSize(w, h);
+  pvRend.setPixelRatio(window.devicePixelRatio);
+  pvRend.shadowMap.enabled = true;
+  c.appendChild(pvRend.domElement);
+  pvCtrl = new OrbitControls(pvCam, pvRend.domElement);
+  pvCtrl.enableDamping = true;
+  pvCtrl.target.set(0, .5, 0);
+  pvScene.add(new THREE.AmbientLight(0xffffff, .7));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.1);
+  dl.position.set(3, 5, 3); dl.castShadow = true; pvScene.add(dl);
+  pvScene.add(new THREE.GridHelper(4, 20, 0x888888, 0xcccccc));
 
-            initPreviewEngine();
-            
-            // Mostrar loading
-            const previewContainer = document.getElementById('modelPreview');
-            const loadingDiv = document.createElement('div');
-            loadingDiv.id = 'previewLoading';
-            loadingDiv.textContent = '🔄 Cargando modelo 3D...';
-            loadingDiv.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.7); color:white; padding:10px 20px; border-radius:20px; z-index:10; font-size:14px;';
-            previewContainer.style.position = 'relative';
-            previewContainer.appendChild(loadingDiv);
+  // Plano QR marcador visual
+  const qrPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+  );
+  qrPlane.rotation.x = -Math.PI / 2;
+  qrPlane.position.y = 0.001;
+  pvScene.add(qrPlane);
+  const qrBorder = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.02, 1.02)),
+    new THREE.LineBasicMaterial({ color: 0x333333 })
+  );
+  qrBorder.rotation.x = -Math.PI / 2;
+  qrBorder.position.y = 0.002;
+  pvScene.add(qrBorder);
 
-            if (currentPreviewModel) {
-                previewScene.remove(currentPreviewModel);
-                currentPreviewModel = null;
-            }
+  const label = document.createElement('div');
+  label.textContent = 'QR Marcador';
+  label.style.cssText = 'position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.55);color:white;font-size:11px;padding:3px 8px;border-radius:6px';
+  c.appendChild(label);
 
-            const rawUrl = convertToRawUrl(url);
-            const loader = new GLTFLoader();
-            
-            loader.load(rawUrl, (gltf) => {
-                currentPreviewModel = gltf.scene;
-                
-                // Calcular bounding box para centrar
-                const box = new THREE.Box3().setFromObject(currentPreviewModel);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
-                
-                // Escalar para que encaje
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const scale = 1.2 / maxDim;
-                currentPreviewModel.scale.set(scale, scale, scale);
-                
-                // Reposicionar
-                currentPreviewModel.position.x = -center.x * scale;
-                currentPreviewModel.position.y = -center.y * scale;
-                currentPreviewModel.position.z = -center.z * scale;
-                
-                previewScene.add(currentPreviewModel);
-                
-                // Ajustar cámara
-                const newCenter = new THREE.Vector3(0, 0.5, 0);
-                previewControls.target.copy(newCenter);
-                previewCamera.position.set(1, 1, 2);
-                previewCamera.lookAt(newCenter);
-                previewControls.update();
-                
-                const loadingEl = document.getElementById('previewLoading');
-                if(loadingEl) loadingEl.remove();
-                showNotification('Modelo cargado correctamente', 'success');
-            }, undefined, (error) => {
-                console.error('Error loading model:', error);
-                const loadingEl = document.getElementById('previewLoading');
-                if(loadingEl) loadingEl.remove();
-                showNotification('Error al cargar el modelo. Verifica la URL y que el archivo sea accesible públicamente.', 'error');
-            });
-        }
+  (function loop() { requestAnimationFrame(loop); pvCtrl.update(); pvRend.render(pvScene, pvCam); })();
+}
 
-        // Generar código QR
-        function generateARCode() {
-            const modelUrl = document.getElementById('modelUrl').value.trim();
-            const modelName = document.getElementById('modelName').value.trim();
+function loadPreview() {
+  const url = document.getElementById('modelUrl').value.trim();
+  if (!url) { notify('Ingresa una URL primero', 'err'); return; }
+  initPreview();
+  const box = document.getElementById('previewBox');
+  const ld = document.createElement('div');
+  ld.id = 'pvLd'; ld.textContent = '⏳ Cargando…';
+  ld.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.7);color:white;padding:8px 18px;border-radius:20px;font-size:13px;z-index:5';
+  box.appendChild(ld);
+  if (pvModel) { pvScene.remove(pvModel); pvModel = null; }
+  const raw = toRaw(url);
+  new GLTFLoader().load(raw, gltf => {
+    pvModel = gltf.scene;
+    const bb = new THREE.Box3().setFromObject(pvModel);
+    const sz = bb.getSize(new THREE.Vector3());
+    const cn = bb.getCenter(new THREE.Vector3());
+    const sc = 0.9 / Math.max(sz.x, sz.y, sz.z);
+    pvModel.scale.set(sc, sc, sc);
+    pvModel.position.set(-cn.x * sc, -cn.y * sc, -cn.z * sc);
+    pvScene.add(pvModel);
+    document.getElementById('pvLd')?.remove();
+    applyTransformToPreview();
+    notify('Modelo cargado ✓', 'ok');
+  }, undefined, e => {
+    console.error(e);
+    document.getElementById('pvLd')?.remove();
+    notify('Error al cargar el modelo', 'err');
+  });
+}
 
-            if (!modelUrl) {
-                showNotification('Ingresa la URL del modelo primero', 'error');
-                return;
-            }
+function generateQR() {
+  const url = document.getElementById('modelUrl').value.trim();
+  if (!url) { notify('Ingresa la URL del modelo primero', 'err'); return; }
+  const raw = toRaw(url);
+  const name = document.getElementById('modelName').value.trim() || 'Modelo';
+  const t = getTransforms();
+  const params = new URLSearchParams({
+    mode: 'viewer', model: raw,
+    px: t.px, py: t.py, pz: t.pz,
+    rx: t.rx, ry: t.ry, rz: t.rz,
+    sx: t.sx, sy: t.sy, sz: t.sz
+  });
+  const viewerUrl = `${location.origin}${location.pathname}?${params.toString()}`;
+  const qDiv = document.getElementById('qrcode');
+  qDiv.innerHTML = '';
+  try {
+    new QRCode(qDiv, { text: viewerUrl, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.H });
+  } catch (e) { notify('Error generando QR', 'err'); return; }
+  document.getElementById('qrCard').style.display = 'block';
+  document.getElementById('qrCard').scrollIntoView({ behavior: 'smooth' });
+  if (!savedModels.some(m => m.url === raw)) {
+    savedModels.unshift({ url: raw, name, date: new Date().toISOString(), originalUrl: url, transforms: t });
+    localStorage.setItem('ar_pro_v1', JSON.stringify(savedModels));
+    updateList();
+  }
+  notify('¡Código QR AR generado!', 'ok');
+}
 
-            const rawUrl = convertToRawUrl(modelUrl);
-            const viewerUrl = `${window.location.origin}${window.location.pathname}?mode=viewer&model=${encodeURIComponent(rawUrl)}`;
-            
-            const qrDiv = document.getElementById('qrcode');
-            qrDiv.innerHTML = '';
-            
-            try {
-                new QRCode(qrDiv, {
-                    text: viewerUrl,
-                    width: 220,
-                    height: 220,
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-            } catch(e) {
-                showNotification('Error generando QR', 'error');
-                return;
-            }
+function downloadQR() {
+  const img = document.querySelector('#qrcode img');
+  if (img) { const a = document.createElement('a'); a.download = 'QR-AR-' + Date.now() + '.png'; a.href = img.src; a.click(); }
+  else notify('Genera un QR primero', 'err');
+}
 
-            document.getElementById('qrResultCard').style.display = 'block';
-            document.getElementById('qrResultCard').scrollIntoView({ behavior: 'smooth' });
+function copyLink() {
+  const url = document.getElementById('modelUrl').value.trim();
+  if (!url) { notify('Ingresa un modelo primero', 'err'); return; }
+  const raw = toRaw(url);
+  const t = getTransforms();
+  const params = new URLSearchParams({ mode: 'viewer', model: raw, px: t.px, py: t.py, pz: t.pz, rx: t.rx, ry: t.ry, rz: t.rz, sx: t.sx, sy: t.sy, sz: t.sz });
+  navigator.clipboard.writeText(`${location.origin}${location.pathname}?${params}`).then(() => notify('Enlace copiado', 'ok')).catch(() => notify('Error al copiar', 'err'));
+}
 
-            const nameToSave = modelName || 'Modelo sin título';
-            
-            // Guardar en localStorage si no existe
-            if (!savedModels.some(m => m.url === rawUrl)) {
-                savedModels.unshift({
-                    url: rawUrl,
-                    name: nameToSave,
-                    date: new Date().toISOString(),
-                    originalUrl: modelUrl
-                });
-                localStorage.setItem('ar_models_v3', JSON.stringify(savedModels));
-                updateModelList();
-            }
-            
-            showNotification('¡Código QR de Realidad Aumentada creado!', 'success');
-        }
+function updateList() {
+  const c = document.getElementById('modelList');
+  if (!savedModels.length) { c.innerHTML = '<p style="color:#999;text-align:center;font-size:14px">No hay modelos guardados.</p>'; return; }
+  c.innerHTML = savedModels.map((m, i) => `
+    <div class="model-item" data-i="${i}">
+      <div style="flex:1;overflow:hidden;padding-right:8px">
+        <div class="model-name">${esc(m.name)}</div>
+        <div class="model-url">${esc(m.originalUrl || m.url)}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" data-del="${i}" style="min-width:44px;padding:8px 12px">🗑️</button>
+    </div>`).join('');
+  c.querySelectorAll('.model-item').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.dataset.del !== undefined) return;
+      loadFromList(parseInt(el.dataset.i));
+    });
+  });
+  c.querySelectorAll('[data-del]').forEach(b => {
+    b.addEventListener('click', e => { e.stopPropagation(); delModel(parseInt(b.dataset.del)); });
+  });
+}
 
-        // Actualizar lista de modelos
-        function updateModelList() {
-            const listContainer = document.getElementById('modelList');
-            if (!listContainer) return;
+function loadFromList(i) {
+  const m = savedModels[i];
+  document.getElementById('modelUrl').value = m.originalUrl || m.url;
+  document.getElementById('modelName').value = m.name;
+  if (m.transforms) {
+    const t = m.transforms;
+    ['px','py','pz','rx','ry','rz','sx','sy','sz'].forEach(k => {
+      const el = document.getElementById(k);
+      el.value = t[k];
+      el.dispatchEvent(new Event('input'));
+    });
+  }
+  switchTab('create');
+  setTimeout(loadPreview, 150);
+}
 
-            if (savedModels.length === 0) {
-                listContainer.innerHTML = '<p style="color: #999; text-align: center;">No hay modelos guardados en tu biblioteca.</p>';
-                return;
-            }
+function delModel(i) {
+  if (confirm('¿Eliminar este modelo?')) {
+    savedModels.splice(i, 1);
+    localStorage.setItem('ar_pro_v1', JSON.stringify(savedModels));
+    updateList();
+    notify('Eliminado', 'info');
+  }
+}
 
-            listContainer.innerHTML = savedModels.map((model, index) => `
-                <div class="model-item" data-index="${index}">
-                    <div class="model-info">
-                        <div class="model-name">${escapeHtml(model.name)}</div>
-                        <div class="model-url">${escapeHtml(model.originalUrl || model.url)}</div>
-                    </div>
-                    <button class="delete-btn" data-index="${index}">🗑️</button>
-                </div>
-            `).join('');
-            
-            // Agregar event listeners
-            document.querySelectorAll('.model-item').forEach(item => {
-                const idx = parseInt(item.dataset.index);
-                item.addEventListener('click', (e) => {
-                    if(e.target.classList.contains('delete-btn')) return;
-                    loadModelToCreate(idx);
-                });
-            });
-            
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const idx = parseInt(btn.dataset.index);
-                    deleteModel(idx);
-                });
-            });
-        }
+function resetTransforms() {
+  const defs = { px: 0, py: 0.5, pz: 0, rx: 0, ry: 0, rz: 0, sx: 1, sy: 1, sz: 1 };
+  Object.keys(defs).forEach(k => {
+    document.getElementById(k).value = defs[k];
+    document.getElementById(k).dispatchEvent(new Event('input'));
+  });
+}
 
-        function loadModelToCreate(index) {
-            const model = savedModels[index];
-            document.getElementById('modelUrl').value = model.originalUrl || model.url;
-            document.getElementById('modelName').value = model.name;
-            // Cambiar a pestaña crear
-            document.getElementById('createTab').style.display = 'block';
-            document.getElementById('listTab').style.display = 'none';
-            document.getElementById('tabCreateBtn').classList.add('active');
-            document.getElementById('tabListBtn').classList.remove('active');
-            // Opcional: cargar preview automáticamente
-            setTimeout(() => loadPreview(), 100);
-        }
+function switchTab(t) {
+  const c = t === 'create';
+  document.getElementById('createPane').style.display = c ? 'block' : 'none';
+  document.getElementById('listPane').style.display = c ? 'none' : 'block';
+  document.getElementById('tab1').classList.toggle('active', c);
+  document.getElementById('tab2').classList.toggle('active', !c);
+  if (!c) updateList();
+}
 
-        function deleteModel(index) {
-            if (confirm('¿Eliminar este modelo de la biblioteca?')) {
-                savedModels.splice(index, 1);
-                localStorage.setItem('ar_models_v3', JSON.stringify(savedModels));
-                updateModelList();
-                showNotification('Modelo eliminado', 'info');
-            }
-        }
+function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
-        function clearAllModels() {
-            if (confirm('¿Eliminar TODOS los modelos guardados?')) {
-                savedModels = [];
-                localStorage.setItem('ar_models_v3', JSON.stringify(savedModels));
-                updateModelList();
-                showNotification('Biblioteca vaciada', 'info');
-            }
-        }
+function notify(msg, type) {
+  const n = document.getElementById('notif');
+  n.textContent = msg;
+  n.style.backgroundColor = type === 'ok' ? '#4caf50' : type === 'err' ? '#f44336' : '#2196f3';
+  n.style.display = 'block';
+  setTimeout(() => n.style.display = 'none', 3200);
+}
 
-        function downloadQR() {
-            const img = document.querySelector('#qrcode img');
-            if (img) {
-                const link = document.createElement('a');
-                link.download = `QR-AR-${Date.now()}.png`;
-                link.href = img.src;
-                link.click();
-                showNotification('QR descargado', 'success');
-            } else {
-                showNotification('Primero genera un código QR', 'error');
-            }
-        }
+const stored = localStorage.getItem('ar_pro_v1');
+if (stored) try { savedModels = JSON.parse(stored); } catch (e) {}
 
-        function copyARLink() {
-            const modelUrl = document.getElementById('modelUrl').value.trim();
-            if(!modelUrl) {
-                showNotification('Primero ingresa un modelo', 'error');
-                return;
-            }
-            const rawUrl = convertToRawUrl(modelUrl);
-            const viewerUrl = `${window.location.origin}${window.location.pathname}?mode=viewer&model=${encodeURIComponent(rawUrl)}`;
-            
-            navigator.clipboard.writeText(viewerUrl).then(() => {
-                showNotification('Enlace copiado al portapapeles', 'success');
-            }).catch(() => {
-                showNotification('Error al copiar', 'error');
-            });
-        }
+setupSliders();
+document.getElementById('previewBtn').addEventListener('click', loadPreview);
+document.getElementById('generateBtn').addEventListener('click', generateQR);
+document.getElementById('dlQRBtn').addEventListener('click', downloadQR);
+document.getElementById('copyLinkBtn').addEventListener('click', copyLink);
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (confirm('¿Vaciar biblioteca?')) {
+    savedModels = [];
+    localStorage.setItem('ar_pro_v1', JSON.stringify(savedModels));
+    updateList();
+  }
+});
+document.getElementById('resetTransformBtn').addEventListener('click', resetTransforms);
+document.getElementById('tab1').addEventListener('click', () => switchTab('create'));
+document.getElementById('tab2').addEventListener('click', () => switchTab('list'));
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+window.addEventListener('resize', () => {
+  if (pvRend && pvCam) {
+    const c = document.getElementById('previewBox');
+    pvCam.aspect = c.clientWidth / c.clientHeight;
+    pvCam.updateProjectionMatrix();
+    pvRend.setSize(c.clientWidth, c.clientHeight);
+  }
+});
+</script>
 
-        function showNotification(message, type = 'info') {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.style.backgroundColor = type === 'success' ? '#4caf50' : (type === 'error' ? '#f44336' : '#2196f3');
-            notification.style.display = 'block';
-            setTimeout(() => { notification.style.display = 'none'; }, 3500);
-        }
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 
-        function switchTab(tabName) {
-            const createTab = document.getElementById('createTab');
-            const listTab = document.getElementById('listTab');
-            const createBtn = document.getElementById('tabCreateBtn');
-            const listBtn = document.getElementById('tabListBtn');
-            
-            if(tabName === 'create') {
-                createTab.style.display = 'block';
-                listTab.style.display = 'none';
-                createBtn.classList.add('active');
-                listBtn.classList.remove('active');
-            } else {
-                createTab.style.display = 'none';
-                listTab.style.display = 'block';
-                createBtn.classList.remove('active');
-                listBtn.classList.add('active');
-                updateModelList();
-            }
-        }
+async function checkRoute() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('mode') !== 'viewer') return;
+  const modelUrl = p.get('model');
+  if (!modelUrl) return;
 
-        // Cargar datos guardados
-        const stored = localStorage.getItem('ar_models_v3');
-        if (stored) { 
-            savedModels = JSON.parse(stored);
+  const t = {
+    px: parseFloat(p.get('px') || 0),
+    py: parseFloat(p.get('py') || 0.5),
+    pz: parseFloat(p.get('pz') || 0),
+    rx: parseFloat(p.get('rx') || 0),
+    ry: parseFloat(p.get('ry') || 0),
+    rz: parseFloat(p.get('rz') || 0),
+    sx: parseFloat(p.get('sx') || 1),
+    sy: parseFloat(p.get('sy') || 1),
+    sz: parseFloat(p.get('sz') || 1)
+  };
+
+  document.body.innerHTML = `
+    <div id="arInfo" style="position:fixed;top:0;left:0;right:0;background:rgba(0,0,0,.82);color:white;padding:12px 16px;font-size:13px;text-align:center;z-index:9999;font-family:sans-serif;backdrop-filter:blur(6px)">
+      ⏳ Iniciando visor AR…
+    </div>
+    <div style="position:fixed;bottom:24px;left:0;width:100%;display:flex;justify-content:center;gap:10px;z-index:9999;padding:0 14px;box-sizing:border-box">
+      <button id="arBtn" style="flex:1;max-width:160px;background:#3182ce;color:white;border:none;padding:12px;font-weight:bold;border-radius:40px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.35);cursor:pointer">📷 Activar AR</button>
+      <button id="resetBtn" style="max-width:90px;background:#4a5568;color:white;border:none;padding:12px;font-weight:bold;border-radius:40px;font-size:14px;cursor:pointer">↺ Reset</button>
+    </div>
+  `;
+
+  const info = document.getElementById('arInfo');
+  const DEG = Math.PI / 180;
+  let scene, camera, renderer, controls, model3D, videoEl, videoStream, arActive = false;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0f1520);
+  scene.fog = new THREE.FogExp2(0x0f1520, .006);
+
+  camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .05, 500);
+  camera.position.set(0, 1.4, 3.2);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(devicePixelRatio);
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+  renderer.domElement.style.cssText = 'position:fixed;top:0;left:0;z-index:1';
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = .06;
+  controls.target.set(t.px, t.py, t.pz);
+  controls.rotateSpeed = 1.5;
+  controls.zoomSpeed = 1.2;
+
+  scene.add(new THREE.AmbientLight(0xffffff, .65));
+  const dl = new THREE.DirectionalLight(0xfff5e6, 1.2);
+  dl.position.set(3, 5, 2); dl.castShadow = true; scene.add(dl);
+  const fl = new THREE.PointLight(0x88aaff, .4);
+  fl.position.set(1, 2, 3); scene.add(fl);
+  const bl = new THREE.PointLight(0xffaa66, .3);
+  bl.position.set(-1, 1.5, -2); scene.add(bl);
+  scene.add(new THREE.GridHelper(4, 20, 0x335588, 0x223355));
+
+  // Plano QR marcador visual en visor
+  const qrPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: .6 })
+  );
+  qrPlane.rotation.x = -Math.PI / 2;
+  qrPlane.position.y = .001;
+  scene.add(qrPlane);
+  const qrBorder = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.02, 1.02)),
+    new THREE.LineBasicMaterial({ color: 0x4299e1 })
+  );
+  qrBorder.rotation.x = -Math.PI / 2;
+  qrBorder.position.y = .003;
+  scene.add(qrBorder);
+
+  info.textContent = '📥 Cargando modelo 3D…';
+  new GLTFLoader().load(decodeURIComponent(modelUrl), gltf => {
+    model3D = gltf.scene;
+    const bb = new THREE.Box3().setFromObject(model3D);
+    const sz = bb.getSize(new THREE.Vector3());
+    const cn = bb.getCenter(new THREE.Vector3());
+    const sc = 0.9 / Math.max(sz.x, sz.y, sz.z);
+    model3D.scale.set(sc * t.sx, sc * t.sy, sc * t.sz);
+    model3D.position.set(t.px - cn.x * sc, t.py - cn.y * sc, t.pz - cn.z * sc);
+    model3D.rotation.set(t.rx * DEG, t.ry * DEG, t.rz * DEG);
+    scene.add(model3D);
+    info.textContent = '✅ Modelo listo — 1 dedo rotar | 2 dedos zoom | Activa AR para tracking QR';
+    controls.target.set(t.px, t.py + .3, t.pz);
+    setTimeout(() => info.style.opacity = '.65', 4000);
+  }, undefined, e => {
+    console.error(e);
+    info.textContent = '❌ Error cargando modelo. Verifica la URL.';
+    info.style.background = 'rgba(180,20,20,.9)';
+  });
+
+  (function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+
+  async function startAR() {
+    if (arActive) return;
+    info.textContent = '🎥 Solicitando cámara trasera…';
+    try {
+      videoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      });
+      videoEl = document.createElement('video');
+      videoEl.autoplay = true; videoEl.playsInline = true; videoEl.muted = true;
+      videoEl.srcObject = videoStream;
+      videoEl.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;pointer-events:none';
+      document.body.appendChild(videoEl);
+      await videoEl.play();
+      renderer.setClearColor(0, 0);
+      scene.background = null;
+      arActive = true;
+      info.textContent = '🎯 AR activo — Apunta al QR impreso para anclar el modelo. Mueve lentamente.';
+      document.getElementById('arBtn').textContent = '🛑 Desactivar AR';
+      startQRTracking();
+    } catch (e) {
+      info.textContent = '❌ No se pudo acceder a la cámara.';
+    }
+  }
+
+  function stopAR() {
+    if (!arActive) return;
+    videoEl?.remove();
+    videoStream?.getTracks().forEach(tr => tr.stop());
+    videoEl = null; videoStream = null; arActive = false;
+    renderer.setClearColor(0x0f1520, 1);
+    scene.background = new THREE.Color(0x0f1520);
+    info.textContent = 'Modo 3D normal. Presiona AR para activar tracking QR.';
+    document.getElementById('arBtn').textContent = '📷 Activar AR';
+  }
+
+  async function startQRTracking() {
+    // Cargar jsQR para detección del marcador QR
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    document.head.appendChild(script);
+    await new Promise((res, rej) => { script.onload = res; script.onerror = rej; });
+
+    if (typeof jsQR === 'undefined') {
+      info.textContent = '⚠️ AR activo. Sin tracking QR (jsQR no disponible). Mueve el modelo manualmente.';
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    let lastAnchor = null;
+
+    function scanFrame() {
+      if (!arActive) return;
+      requestAnimationFrame(scanFrame);
+      if (!videoEl || videoEl.readyState < 2) return;
+      canvas.width = videoEl.videoWidth >> 1;
+      canvas.height = videoEl.videoHeight >> 1;
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      try {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imgData.data, canvas.width, canvas.height, { inversionAttempts: 'dontInvert' });
+        if (code) {
+          const loc = code.location;
+          const cx = (loc.topLeftCorner.x + loc.topRightCorner.x + loc.bottomLeftCorner.x + loc.bottomRightCorner.x) / (4 * canvas.width);
+          const cy = (loc.topLeftCorner.y + loc.topRightCorner.y + loc.bottomLeftCorner.y + loc.bottomRightCorner.y) / (4 * canvas.height);
+          const w = Math.hypot(loc.topRightCorner.x - loc.topLeftCorner.x, loc.topRightCorner.y - loc.topLeftCorner.y) / canvas.width;
+          const depth = 0.4 / Math.max(w, .01);
+          const worldX = (cx - .5) * depth * 1.6;
+          const worldZ = (cy - .5) * depth * 1.2;
+          const anchor = { x: worldX, y: t.py, z: worldZ };
+          if (!lastAnchor) lastAnchor = { ...anchor };
+          lastAnchor.x += .15 * (anchor.x - lastAnchor.x);
+          lastAnchor.z += .15 * (anchor.z - lastAnchor.z);
+          if (model3D) {
+            model3D.position.x = lastAnchor.x + t.px;
+            model3D.position.y = lastAnchor.y;
+            model3D.position.z = lastAnchor.z + t.pz;
+          }
+          qrPlane.position.set(lastAnchor.x, 0.001, lastAnchor.z);
+          qrBorder.position.set(lastAnchor.x, 0.003, lastAnchor.z);
+          info.textContent = '✅ QR detectado — modelo anclado sobre el marcador';
+          info.style.background = 'rgba(20,120,50,.9)';
         } else {
-            savedModels = [];
+          info.textContent = '🔍 Buscando marcador QR… Apunta la cámara al QR impreso';
+          info.style.background = 'rgba(0,0,0,.82)';
         }
+      } catch (e) {}
+    }
+    scanFrame();
+  }
 
-        // Configurar eventos después de cargar
-        document.getElementById('previewBtn').addEventListener('click', loadPreview);
-        document.getElementById('generateBtn').addEventListener('click', generateARCode);
-        document.getElementById('downloadQRBtn').addEventListener('click', downloadQR);
-        document.getElementById('copyLinkBtn').addEventListener('click', copyARLink);
-        document.getElementById('clearAllBtn').addEventListener('click', clearAllModels);
-        document.getElementById('tabCreateBtn').addEventListener('click', () => switchTab('create'));
-        document.getElementById('tabListBtn').addEventListener('click', () => switchTab('list'));
-        
-        // Inicializar UI
-        switchTab('create');
-        
-        // Redimensionar preview al cambiar tamaño
-        window.addEventListener('resize', () => {
-            if(previewRenderer && previewCamera) {
-                const container = document.getElementById('modelPreview');
-                const width = container.clientWidth;
-                const height = container.clientHeight;
-                previewCamera.aspect = width / height;
-                previewCamera.updateProjectionMatrix();
-                previewRenderer.setSize(width, height);
-            }
-        });
-    </script>
+  document.getElementById('arBtn').onclick = () => arActive ? stopAR() : startAR();
+  document.getElementById('resetBtn').onclick = () => {
+    camera.position.set(0, 1.4, 3.2);
+    controls.target.set(t.px, t.py, t.pz);
+    controls.update();
+    if (model3D) {
+      model3D.position.set(t.px, t.py, t.pz);
+      model3D.rotation.set(t.rx * DEG, t.ry * DEG, t.rz * DEG);
+    }
+  };
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+  window.addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
 
-        function checkARViewerRoute() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const mode = urlParams.get('mode');
-            const modelUrl = urlParams.get('model');
-
-            if (mode === 'viewer' && modelUrl) {
-                // Limpiar y mostrar visor AR
-                document.body.innerHTML = `
-                    <div id="ar-viewer-info" style="position:fixed; top:15px; left:15px; right:15px; background:rgba(0,0,0,0.85); color:white; padding:12px 16px; border-radius:12px; font-size:13px; text-align:center; z-index:10000; font-family:sans-serif; backdrop-filter:blur(8px); pointer-events:none;">
-                        🔄 Inicializando visualizador 3D...
-                    </div>
-                    <div style="position:fixed; bottom:25px; left:0; width:100%; display:flex; justify-content:center; gap:12px; z-index:10000; padding:0 16px; box-sizing:border-box;">
-                        <button id="arTriggerBtn" style="flex:1; max-width:180px; background:linear-gradient(135deg, #4299e1, #2b6cb0); color:white; border:none; padding:12px 20px; font-weight:bold; border-radius:40px; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.3); cursor:pointer;">📷 AR</button>
-                        <button id="resetViewBtn" style="flex:1; max-width:100px; background:#4a5568; color:white; border:none; padding:12px 16px; font-weight:bold; border-radius:40px; font-size:14px; cursor:pointer;">↺ Reset</button>
-                    </div>
-                `;
-
-                launchARViewer(decodeURIComponent(modelUrl));
-            }
-        }
-
-        async function launchARViewer(targetModelUrl) {
-            let scene, camera, renderer, controls, model3D;
-            let videoStream = null;
-            let arActive = false;
-
-            const infoDiv = document.getElementById('ar-viewer-info');
-
-            // Escena
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111122);
-            scene.fog = new THREE.FogExp2(0x111122, 0.008);
-
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 1.2, 3.5);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = true;
-            document.body.appendChild(renderer.domElement);
-
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.06;
-            controls.target.set(0, 0.6, 0);
-            controls.rotateSpeed = 1.5;
-            controls.zoomSpeed = 1.2;
-
-            // Luces mejoradas
-            const ambient = new THREE.AmbientLight(0xffffff, 0.65);
-            scene.add(ambient);
-            const mainLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
-            mainLight.position.set(3, 5, 2);
-            mainLight.castShadow = true;
-            scene.add(mainLight);
-            const fillLight = new THREE.PointLight(0x88aaff, 0.4);
-            fillLight.position.set(1, 2, 3);
-            scene.add(fillLight);
-            const backLight = new THREE.PointLight(0xffaa66, 0.3);
-            backLight.position.set(-1, 1.5, -2);
-            scene.add(backLight);
-
-            // Grid referencia
-            const grid = new THREE.GridHelper(4, 20, 0x88aaff, 0x335588);
-            grid.position.y = -0.6;
-            scene.add(grid);
-
-            // Cargar modelo
-            const loader = new GLTFLoader();
-            infoDiv.innerHTML = "📥 Cargando modelo 3D...";
-            
-            loader.load(targetModelUrl, (gltf) => {
-                model3D = gltf.scene;
-                
-                const box = new THREE.Box3().setFromObject(model3D);
-                const size = box.getSize(new THREE.Vector3());
-                const center = box.getCenter(new THREE.Vector3());
-                const scale = 1.0 / Math.max(size.x, size.y, size.z);
-                model3D.scale.set(scale, scale, scale);
-                model3D.position.x = -center.x * scale;
-                model3D.position.y = -center.y * scale;
-                model3D.position.z = -center.z * scale;
-                
-                scene.add(model3D);
-                infoDiv.innerHTML = "✅ Modelo listo. Usa 1 dedo (rotar) / 2 dedos (zoom)";
-                
-                setTimeout(() => {
-                    infoDiv.style.opacity = "0.7";
-                }, 3000);
-            }, undefined, (err) => {
-                console.error(err);
-                infoDiv.innerHTML = "❌ Error: No se pudo cargar el modelo. Verifica URL pública.";
-                infoDiv.style.background = "rgba(220,38,38,0.9)";
-            });
-
-            function animate() {
-                requestAnimationFrame(animate);
-                controls.update();
-                renderer.render(scene, camera);
-            }
-            animate();
-
-            // AR con cámara trasera
-            async function startAR() {
-                if (arActive) return;
-                infoDiv.innerHTML = "🎥 Solicitando cámara...";
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: { exact: "environment" } }
-                    });
-                    videoStream = stream;
-                    const videoElem = document.createElement('video');
-                    videoElem.id = "ar-video-bg";
-                    videoElem.autoplay = true;
-                    videoElem.playsInline = true;
-                    videoElem.srcObject = stream;
-                    videoElem.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; object-fit:cover; z-index:-1; pointer-events:none;";
-                    document.body.appendChild(videoElem);
-                    
-                    renderer.setClearColor(0x000000, 0);
-                    scene.background = null;
-                    arActive = true;
-                    infoDiv.innerHTML = "🎯 Modo AR activo. El modelo se posa sobre superficies.";
-                    document.getElementById('arTriggerBtn').textContent = "🛑 Desactivar AR";
-                } catch(e) {
-                    infoDiv.innerHTML = "❌ No se pudo acceder a la cámara trasera.";
-                }
-            }
-
-            function stopAR() {
-                if (!arActive) return;
-                const videoBg = document.getElementById('ar-video-bg');
-                if(videoBg) videoBg.remove();
-                if(videoStream) {
-                    videoStream.getTracks().forEach(t => t.stop());
-                    videoStream = null;
-                }
-                renderer.setClearColor(0x111122, 1);
-                scene.background = new THREE.Color(0x111122);
-                arActive = false;
-                infoDiv.innerHTML = "Modo normal. Presiona AR para cámara.";
-                document.getElementById('arTriggerBtn').textContent = "📷 Activar AR";
-            }
-
-            document.getElementById('arTriggerBtn').onclick = () => {
-                if(arActive) stopAR();
-                else startAR();
-            };
-            
-            document.getElementById('resetViewBtn').onclick = () => {
-                camera.position.set(0, 1.2, 3.5);
-                controls.target.set(0, 0.6, 0);
-                controls.update();
-                if(model3D) model3D.rotation.set(0, 0, 0);
-            };
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        }
-
-        checkARViewerRoute();
-    </script>
+checkRoute();
+</script>
 </body>
 </html>
