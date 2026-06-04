@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Model Manager</title>
+    <title>AR Model Manager - Tracking Mejorado</title>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs2@0.0.2/qrcode.min.js"></script>
     <style>
@@ -15,7 +15,6 @@
         }
         body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-height:100vh; color:var(--text); }
 
-        /* ── MANAGER ── */
         #managerMode { max-width:800px; margin:0 auto; padding:20px; }
         .header { text-align:center; padding:36px 20px 26px; }
         .header h1 { font-size:2rem; font-weight:700; background:linear-gradient(135deg,var(--purple),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:6px; }
@@ -61,21 +60,14 @@
         #notification.success { background:var(--success); }
         #notification.error { background:var(--error); }
 
-        /* ── AR VIEWER ── */
         #arMode { display:none; height:100vh; flex-direction:column; background:#0a0010; position:relative; overflow:hidden; }
         #arMode.active { display:flex; }
         .ar-scene-wrap { flex:1; position:relative; overflow:hidden; }
         #arModelViewer { width:100%; height:100%; --progress-bar-color:var(--purple); }
-
-        /* top bar */
         .ar-top-bar { position:absolute; top:0; left:0; right:0; background:rgba(10,0,20,.75); backdrop-filter:blur(12px); padding:12px 16px; display:flex; align-items:center; justify-content:space-between; z-index:20; }
         .ar-top-bar h3 { color:white; font-size:14px; font-weight:600; }
         .ar-back-btn { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); color:white; padding:6px 13px; border-radius:8px; cursor:pointer; font-size:13px; }
-
-        /* edit panel toggle */
         .edit-toggle { background:var(--purple); border:none; color:white; padding:6px 13px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; }
-
-        /* bottom controls */
         .ar-bottom { background:rgba(10,0,20,.88); backdrop-filter:blur(16px); padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
         .ar-btn-row { display:flex; gap:8px; }
         .ar-btn { flex:1; padding:11px; border:none; border-radius:12px; font-size:13px; font-weight:600; cursor:pointer; }
@@ -83,7 +75,6 @@
         .ar-btn-reset { background:rgba(255,255,255,.1); color:white; border:1px solid rgba(255,255,255,.2); }
         .ar-status { color:rgba(255,255,255,.55); font-size:12px; text-align:center; }
 
-        /* ── EDIT PANEL ── */
         #editPanel {
             position:absolute; bottom:0; left:0; right:0;
             background:rgba(15,5,30,.97);
@@ -107,19 +98,18 @@
         .slider-label { color:rgba(255,255,255,.75); font-size:12px; width:22px; flex-shrink:0; font-weight:600; }
         .slider-row input[type=range] { flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:rgba(255,255,255,.15); outline:none; cursor:pointer; }
         .slider-row input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:var(--purple); cursor:pointer; border:2px solid white; }
-        .slider-row input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:var(--purple); cursor:pointer; border:2px solid white; }
         .slider-val { color:white; font-size:12px; font-family:monospace; width:42px; text-align:right; flex-shrink:0; }
         .reset-section-btn { background:rgba(124,58,237,.25); border:1px solid rgba(124,58,237,.4); color:rgba(255,255,255,.7); padding:5px 12px; border-radius:8px; cursor:pointer; font-size:12px; margin-top:4px; }
         .reset-section-btn:hover { background:rgba(124,58,237,.4); }
         .panel-divider { height:1px; background:rgba(255,255,255,.08); margin:4px 0 14px; }
+        .save-transform-btn { background:var(--purple); border-radius:8px; border:none; padding:10px 18px; color:white; font-weight:600; cursor:pointer; width:100%; margin-top:8px; }
         .ar-slot-btn { background:var(--purple); border-radius:8px; border:none; padding:10px 18px; color:white; font-weight:600; cursor:pointer; }
-
+        
         @media(max-width:600px) { #managerMode { padding:12px; } .header h1 { font-size:1.55rem; } .card { padding:16px; } }
     </style>
 </head>
 <body>
 
-<!-- ════════════ MANAGER MODE ════════════ -->
 <div id="managerMode">
     <div class="header">
         <h1>🎨 AR Model Manager</h1>
@@ -137,10 +127,7 @@
             <div class="input-group">
                 <label>🔗 URL del modelo 3D (.glb / .gltf)</label>
                 <input type="text" id="modelUrl" placeholder="https://modelviewer.dev/shared-assets/models/Astronaut.glb" oninput="onUrlInput()">
-                <small>
-                    GitHub: reemplaza <code>github.com/.../blob/</code> → <code>raw.githubusercontent.com/.../</code><br>
-                    El servidor debe permitir CORS (raw.githubusercontent.com sí lo permite).
-                </small>
+                <small>Usa URLs raw de GitHub o cualquier servidor con CORS habilitado.</small>
             </div>
             <div class="input-group">
                 <label>🏷️ Nombre del modelo (opcional)</label>
@@ -164,16 +151,17 @@
         </div>
 
         <div class="card" id="qrResultCard" style="display:none;">
-            <h2>📱 Código QR para AR con tracking</h2>
+            <h2>📱 Código QR para AR con tracking mejorado</h2>
             <div class="qr-result">
                 <div class="qr-box" id="qrcode"></div>
                 <div class="info-box">
-                    <strong>📌 Cómo usar el AR con tracking:</strong><br>
-                    1. Imprime este QR o muéstralo en otra pantalla<br>
-                    2. Escanéalo con tu cámara para abrir el visor<br>
-                    3. Pulsa <strong>"Activar AR"</strong> en el visor<br>
-                    4. En Android/iOS: AR nativo WebXR ancla el modelo en el mundo real<br>
-                    5. En navegadores con <strong>BarcodeDetector</strong>: la cámara detecta el QR y superpone el modelo sobre él en tiempo real
+                    <strong>📌 CÓMO FUNCIONA EL TRACKING (MEJORADO):</strong><br>
+                    1. Imprime este QR o muéstralo en otro dispositivo<br>
+                    2. Escanéalo con la cámara de tu celular<br>
+                    3. Se abrirá el visor AR con el modelo 3D<br>
+                    4. <strong>Usa el botón "Tracking por Marcador Hiro"</strong><br>
+                    5. Apunta al <strong>marcador HIRO impreso</strong> (descárgalo desde el visor)<br>
+                    6. El modelo aparecerá anclado al marcador con la mejor precisión
                 </div>
                 <div class="btn-row">
                     <button class="btn btn-secondary" onclick="downloadQR()">💾 Descargar QR</button>
@@ -192,16 +180,13 @@
     </div>
 </div>
 
-<!-- ════════════ AR VIEWER MODE ════════════ -->
 <div id="arMode">
-    <!-- TOP BAR -->
     <div class="ar-top-bar" style="z-index:21;">
-        <button class="ar-back-btn" onclick="history.back()">← Volver</button>
+        <button class="ar-back-btn" onclick="exitARMode()">← Volver</button>
         <h3 id="arModelTitle">Visor AR</h3>
         <button class="edit-toggle" onclick="toggleEditPanel()">⚙️ Editar</button>
     </div>
 
-    <!-- 3D SCENE -->
     <div class="ar-scene-wrap">
         <model-viewer id="arModelViewer"
             camera-controls auto-rotate
@@ -211,14 +196,12 @@
             <button slot="ar-button" class="ar-slot-btn">📱 Ver en AR</button>
         </model-viewer>
 
-        <!-- EDIT PANEL (inside scene-wrap so it overlays correctly) -->
         <div id="editPanel">
             <div class="panel-header">
                 <h4>⚙️ Editar Modelo</h4>
                 <button class="panel-close" onclick="toggleEditPanel()">✕</button>
             </div>
 
-            <!-- ESCALA -->
             <div class="panel-section">
                 <div class="panel-section-title">Escala</div>
                 <div class="slider-row">
@@ -240,7 +223,6 @@
             </div>
             <div class="panel-divider"></div>
 
-            <!-- POSICIÓN -->
             <div class="panel-section">
                 <div class="panel-section-title">Posición</div>
                 <div class="slider-row">
@@ -262,7 +244,6 @@
             </div>
             <div class="panel-divider"></div>
 
-            <!-- ROTACIÓN -->
             <div class="panel-section">
                 <div class="panel-section-title">Rotación</div>
                 <div class="slider-row">
@@ -284,7 +265,6 @@
             </div>
             <div class="panel-divider"></div>
 
-            <!-- EXPOSICIÓN / SOMBRA -->
             <div class="panel-section">
                 <div class="panel-section-title">Iluminación</div>
                 <div class="slider-row">
@@ -298,56 +278,55 @@
                     <span class="slider-val" id="shadowIntVal">1.00</span>
                 </div>
             </div>
+            
+            <button class="save-transform-btn" onclick="saveCurrentTransform()">💾 Guardar transformaciones para este modelo</button>
         </div>
     </div>
 
-    <!-- BOTTOM CONTROLS -->
     <div class="ar-bottom">
         <div class="ar-btn-row">
-            <button class="ar-btn ar-btn-main" onclick="triggerAR()">📷 Activar AR</button>
-            <button class="ar-btn ar-btn-reset" onclick="resetARView()">🔄 Vista</button>
+            <button class="ar-btn ar-btn-main" onclick="startARWithTracking()">🎯 Tracking por Marcador Hiro</button>
+            <button class="ar-btn ar-btn-reset" onclick="resetARView()">🔄 Resetear vista</button>
         </div>
-        <div class="ar-status" id="arStatus">Cargando modelo…</div>
+        <div class="ar-status" id="arStatus">Cargando modelo...</div>
     </div>
 </div>
 
 <div id="notification"></div>
 
-<!-- ════════════ AR.JS (marker tracking) ════════════ -->
-<!--
-    Cargamos A-Frame + AR.js sólo cuando se entra al modo viewer.
-    El tracking por marcador QR se implementa generando una escena
-    A-Frame dinámica que usa el QR del modelo como marcador NFT (image tracking)
-    o como marcador Hiro/custom. La URL del QR se pasa como parámetro.
--->
-
 <script>
 // ══════════════════════════════════════════════
-//  UTILS
+//  UTILS Y ALMACENAMIENTO
 // ══════════════════════════════════════════════
+let savedModels = [];
+let currentModelUrl = '';
+let currentModelName = '';
+let arjsActive = false;
+
 function convertToRawUrl(url) {
     let u = url.trim();
     if (u.includes('github.com') && u.includes('/blob/') && !u.includes('raw.githubusercontent.com'))
-        u = u.replace('github.com','raw.githubusercontent.com').replace('/blob/','/')
+        u = u.replace('github.com','raw.githubusercontent.com').replace('/blob/','/');
     return u;
 }
+
 function isModelUrl(url) { return /\.(glb|gltf)(\?.*)?$/i.test(url.trim()); }
+
 function showNotification(msg, type='info') {
     const n = document.getElementById('notification');
     n.textContent = msg; n.className = type; n.classList.add('show');
     setTimeout(() => n.classList.remove('show'), 2800);
 }
+
 function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 
-// ══════════════════════════════════════════════
-//  STORAGE
-// ══════════════════════════════════════════════
-let savedModels = [];
 function loadSavedModels() {
     try { savedModels = JSON.parse(localStorage.getItem('ar_models')||'[]'); } catch(e) { savedModels=[]; }
     renderModelList();
 }
+
 function persistModels() { localStorage.setItem('ar_models',JSON.stringify(savedModels)); renderModelList(); }
+
 function renderModelList() {
     const el = document.getElementById('modelList'); if(!el) return;
     if (!savedModels.length) { el.innerHTML='<div class="empty-state"><span>📭</span>No hay modelos guardados.</div>'; return; }
@@ -361,14 +340,10 @@ function renderModelList() {
             <button class="delete-btn" onclick="event.stopPropagation();deleteModel(${i})">Eliminar</button>
         </div>`).join('');
 }
-function deleteModel(i) {
-    if(!confirm('¿Eliminar?')) return;
-    savedModels.splice(i,1); persistModels(); showNotification('Eliminado','success');
-}
-function clearAllModels() {
-    if(!confirm('¿Eliminar todos?')) return;
-    savedModels=[]; persistModels(); showNotification('Lista limpiada','success');
-}
+
+function deleteModel(i) { if(!confirm('¿Eliminar?')) return; savedModels.splice(i,1); persistModels(); showNotification('Eliminado','success'); }
+function clearAllModels() { if(!confirm('¿Eliminar todos?')) return; savedModels=[]; persistModels(); showNotification('Lista limpiada','success'); }
+
 function loadModelFromList(i) {
     const m=savedModels[i];
     document.getElementById('modelUrl').value=m.url;
@@ -377,7 +352,7 @@ function loadModelFromList(i) {
 }
 
 // ══════════════════════════════════════════════
-//  PREVIEW
+//  PREVISUALIZACIÓN
 // ══════════════════════════════════════════════
 let previewTimer = null;
 function onUrlInput() {
@@ -387,6 +362,7 @@ function onUrlInput() {
         if (isModelUrl(raw)) loadPreview();
     }, 800);
 }
+
 function loadPreview() {
     const raw = convertToRawUrl(document.getElementById('modelUrl').value.trim());
     const viewer = document.getElementById('inlineViewer');
@@ -403,7 +379,7 @@ function loadPreview() {
 }
 
 // ══════════════════════════════════════════════
-//  QR GENERATION
+//  GENERACIÓN QR
 // ══════════════════════════════════════════════
 let currentViewerUrl = '';
 function generateARCode() {
@@ -428,16 +404,13 @@ function generateARCode() {
     }
     showNotification('✅ QR generado','success');
 }
+
 function downloadQR() {
     const canvas = document.querySelector('#qrcode canvas');
-    if (canvas) {
-        const a=document.createElement('a'); a.download=`ar-qr-${Date.now()}.png`; a.href=canvas.toDataURL(); a.click();
-        showNotification('QR descargado','success');
-    }
+    if (canvas) { const a=document.createElement('a'); a.download=`ar-qr-${Date.now()}.png`; a.href=canvas.toDataURL(); a.click(); showNotification('QR descargado','success'); }
 }
-function copyARLink() {
-    navigator.clipboard.writeText(currentViewerUrl).then(()=>showNotification('Enlace copiado','success'));
-}
+
+function copyARLink() { navigator.clipboard.writeText(currentViewerUrl).then(()=>showNotification('Enlace copiado','success')); }
 
 // ══════════════════════════════════════════════
 //  TABS
@@ -450,12 +423,19 @@ function switchTab(tab) {
 }
 
 // ══════════════════════════════════════════════
-//  AR VIEWER — EDIT PANEL
+//  EDITOR DE TRANSFORMACIONES CON PERSISTENCIA
 // ══════════════════════════════════════════════
 let editPanelOpen = false;
-function toggleEditPanel() {
-    editPanelOpen = !editPanelOpen;
-    document.getElementById('editPanel').classList.toggle('open', editPanelOpen);
+function toggleEditPanel() { editPanelOpen = !editPanelOpen; document.getElementById('editPanel').classList.toggle('open', editPanelOpen); }
+
+function getCurrentTransform() {
+    return {
+        scale: { x: parseFloat(document.getElementById('scaleX').value), y: parseFloat(document.getElementById('scaleY').value), z: parseFloat(document.getElementById('scaleZ').value) },
+        position: { x: parseFloat(document.getElementById('posX').value), y: parseFloat(document.getElementById('posY').value), z: parseFloat(document.getElementById('posZ').value) },
+        rotation: { x: parseFloat(document.getElementById('rotX').value), y: parseFloat(document.getElementById('rotY').value), z: parseFloat(document.getElementById('rotZ').value) },
+        exposure: parseFloat(document.getElementById('exposure').value),
+        shadowIntensity: parseFloat(document.getElementById('shadowInt').value)
+    };
 }
 
 function applyTransform() {
@@ -463,334 +443,241 @@ function applyTransform() {
     const sx = parseFloat(document.getElementById('scaleX').value);
     const sy = parseFloat(document.getElementById('scaleY').value);
     const sz = parseFloat(document.getElementById('scaleZ').value);
-    const px = parseFloat(document.getElementById('posX').value);
-    const py = parseFloat(document.getElementById('posY').value);
-    const pz = parseFloat(document.getElementById('posZ').value);
     const rx = parseFloat(document.getElementById('rotX').value);
     const ry = parseFloat(document.getElementById('rotY').value);
     const rz = parseFloat(document.getElementById('rotZ').value);
 
-    // Actualizar etiquetas
     document.getElementById('scaleXVal').textContent = sx.toFixed(2);
     document.getElementById('scaleYVal').textContent = sy.toFixed(2);
     document.getElementById('scaleZVal').textContent = sz.toFixed(2);
-    document.getElementById('posXVal').textContent   = px.toFixed(2);
-    document.getElementById('posYVal').textContent   = py.toFixed(2);
-    document.getElementById('posZVal').textContent   = pz.toFixed(2);
+    document.getElementById('posXVal').textContent   = parseFloat(document.getElementById('posX').value).toFixed(2);
+    document.getElementById('posYVal').textContent   = parseFloat(document.getElementById('posY').value).toFixed(2);
+    document.getElementById('posZVal').textContent   = parseFloat(document.getElementById('posZ').value).toFixed(2);
     document.getElementById('rotXVal').textContent   = rx + '°';
     document.getElementById('rotYVal').textContent   = ry + '°';
     document.getElementById('rotZVal').textContent   = rz + '°';
 
-    // ── ROTACIÓN: atributo público de model-viewer ──
-    viewer.setAttribute('orientation', `${rx}deg ${ry}deg ${rz}deg`);
-
-    // ── ESCALA: escala uniforme promedio → ajustamos field-of-view inverso
-    //    (si sx=sy=sz=2, el modelo parece el doble de grande reduciendo el FOV a la mitad)
-    //    Para escala no-uniforme guardamos los valores y los aplicamos al modelo Three.js
-    const avgScale = (sx + sy + sz) / 3;
-    const baseFov  = 30; // grados base
-    viewer.setAttribute('field-of-view', `${(baseFov / Math.max(avgScale, 0.05)).toFixed(2)}deg`);
-
-    // ── ESCALA/POSICIÓN vía Three.js interno (si está disponible) ──
-    viewer.addEventListener('load', () => {
-        try {
-            // Acceder al modelo interno Three.js
-            const modelObj = viewer.model; // solo disponible después de 'load'
-            if (modelObj && modelObj.scene) {
-                modelObj.scene.scale.set(sx, sy, sz);
-                modelObj.scene.position.set(px, py, pz);
-            }
-        } catch(e) {}
-    }, { once: false }); // no-once para que se aplique en cada cambio
-
-    // Intentar aplicar inmediatamente si ya está cargado
     try {
-        const modelObj = viewer.model;
-        if (modelObj && modelObj.scene) {
-            modelObj.scene.scale.set(sx, sy, sz);
-            modelObj.scene.position.set(px, py, pz);
-        }
+        viewer.orientation = `${rx}deg ${ry}deg ${rz}deg`;
+        viewer.scale = `${sx} ${sy} ${sz}`;
+        const model = viewer.model;
+        if (model) { model.position.set(parseFloat(document.getElementById('posX').value), parseFloat(document.getElementById('posY').value), parseFloat(document.getElementById('posZ').value)); }
     } catch(e) {}
-
-    // ── POSICIÓN: usar camera-target como proxy de desplazamiento ──
-    viewer.setAttribute('camera-target', `${px.toFixed(3)}m ${py.toFixed(3)}m ${pz.toFixed(3)}m`);
 }
 
 function applyLighting() {
     const viewer = document.getElementById('arModelViewer');
-    const exp  = parseFloat(document.getElementById('exposure').value);
+    const exp = parseFloat(document.getElementById('exposure').value);
     const shad = parseFloat(document.getElementById('shadowInt').value);
-    document.getElementById('exposureVal').textContent  = exp.toFixed(2);
+    document.getElementById('exposureVal').textContent = exp.toFixed(2);
     document.getElementById('shadowIntVal').textContent = shad.toFixed(2);
-    viewer.exposure       = exp;
+    viewer.exposure = exp;
     viewer.shadowIntensity = shad;
 }
 
-function resetScale()    { ['scaleX','scaleY','scaleZ'].forEach(id=>{ document.getElementById(id).value=1; }); applyTransform(); }
+function resetScale() { ['scaleX','scaleY','scaleZ'].forEach(id=>{ document.getElementById(id).value=1; }); applyTransform(); }
 function resetPosition() { ['posX','posY','posZ'].forEach(id=>{ document.getElementById(id).value=0; }); applyTransform(); }
 function resetRotation() { ['rotX','rotY','rotZ'].forEach(id=>{ document.getElementById(id).value=0; }); applyTransform(); }
 
-function resetARView() {
-    resetScale(); resetPosition(); resetRotation();
-    const viewer = document.getElementById('arModelViewer');
-    viewer.setAttribute('camera-orbit', '0deg 75deg 105%');
-    viewer.setAttribute('field-of-view', '30deg');
-    viewer.setAttribute('camera-target', '0m 0m 0m');
-    showNotification('Vista restablecida', 'success');
+function saveCurrentTransform() {
+    if (!currentModelUrl) { showNotification('No hay modelo cargado','error'); return; }
+    const transform = getCurrentTransform();
+    const savedTransforms = JSON.parse(localStorage.getItem('ar_transforms') || '{}');
+    savedTransforms[currentModelUrl] = transform;
+    localStorage.setItem('ar_transforms', JSON.stringify(savedTransforms));
+    showNotification('Transformaciones guardadas para este modelo','success');
 }
 
-// triggerAR() definida arriba (en la sección de tracking por QR)
+function loadSavedTransform() {
+    if (!currentModelUrl) return;
+    const savedTransforms = JSON.parse(localStorage.getItem('ar_transforms') || '{}');
+    const transform = savedTransforms[currentModelUrl];
+    if (transform) {
+        document.getElementById('scaleX').value = transform.scale.x;
+        document.getElementById('scaleY').value = transform.scale.y;
+        document.getElementById('scaleZ').value = transform.scale.z;
+        document.getElementById('posX').value = transform.position.x;
+        document.getElementById('posY').value = transform.position.y;
+        document.getElementById('posZ').value = transform.position.z;
+        document.getElementById('rotX').value = transform.rotation.x;
+        document.getElementById('rotY').value = transform.rotation.y;
+        document.getElementById('rotZ').value = transform.rotation.z;
+        document.getElementById('exposure').value = transform.exposure || 0.9;
+        document.getElementById('shadowInt').value = transform.shadowIntensity || 1;
+        applyTransform();
+        applyLighting();
+        showNotification('Transformaciones restauradas','success');
+    }
+}
+
+function resetARView() { resetScale(); resetPosition(); resetRotation(); const viewer = document.getElementById('arModelViewer'); if(viewer) { viewer.cameraOrbit = 'auto auto auto'; viewer.fieldOfView = 'auto'; } showNotification('Vista restablecida','success'); }
 
 // ══════════════════════════════════════════════
-//  AR VIEWER INIT — con tracking por QR (AR.js NFT)
+//  AR VIEWER CON TRACKING MEJORADO (MARCADOR HIRO)
+// ══════════════════════════════════════════════
+function exitARMode() {
+    if (arjsActive) closeARjsTracking();
+    document.getElementById('managerMode').style.display = 'block';
+    document.getElementById('arMode').classList.remove('active');
+}
+
+function startARWithTracking() {
+    // Cerrar cualquier sesión anterior
+    if (arjsActive) closeARjsTracking();
+    launchARjsTrackingHiro();
+}
+
+function launchARjsTrackingHiro() {
+    if (arjsActive) return;
+    
+    const modelSrc = currentModelUrl;
+    if (!modelSrc) { showNotification('No hay modelo cargado','error'); return; }
+    
+    // Obtener transformaciones guardadas o usar valores por defecto
+    const savedTransforms = JSON.parse(localStorage.getItem('ar_transforms') || '{}');
+    const transform = savedTransforms[modelSrc] || { scale: {x:0.5, y:0.5, z:0.5}, position: {x:0, y:0, z:0}, rotation: {x:-90, y:0, z:0} };
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'arjsOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9990;background:#000;';
+    
+    overlay.innerHTML = `
+        <div style="position:absolute;top:16px;left:16px;z-index:9999;display:flex;gap:10px;">
+            <button onclick="closeARjsTracking()" style="background:rgba(0,0,0,.8);color:white;border:1px solid rgba(255,255,255,.3);padding:8px 15px;border-radius:8px;font-size:13px;cursor:pointer;">✕ Cerrar</button>
+            <button onclick="downloadHiroMarker()" style="background:rgba(124,58,237,.9);color:white;border:1px solid rgba(255,255,255,.3);padding:8px 15px;border-radius:8px;font-size:13px;cursor:pointer;">⬇️ Descargar Marcador Hiro</button>
+        </div>
+        <div id="arjsStatus" style="position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.7);color:white;padding:8px 16px;border-radius:20px;font-size:12px;white-space:nowrap;">📷 Iniciando cámara - Apunta al marcador HIRO impreso</div>
+        <a-scene id="arScene"
+            embedded
+            arjs="sourceType:webcam; debugUIEnabled:false; detectionMode:mono_and_matrix; matrixCodeType:3x3;"
+            vr-mode-ui="enabled:false"
+            renderer="antialias:true;"
+            style="width:100vw;height:100vh;">
+            
+            <!-- Marcador HIRO estándar (el más fiable) -->
+            <a-marker preset="hiro" id="hiroMarker" emitevents="true">
+                <a-entity
+                    id="arModelEntity"
+                    gltf-model="${modelSrc}"
+                    scale="${transform.scale.x} ${transform.scale.y} ${transform.scale.z}"
+                    position="${transform.position.x} ${transform.position.y} ${transform.position.z}"
+                    rotation="${transform.rotation.x} ${transform.rotation.y} ${transform.rotation.z}">
+                </a-entity>
+            </a-marker>
+            
+            <a-entity camera></a-entity>
+        </a-scene>
+    `;
+    
+    document.body.appendChild(overlay);
+    arjsActive = true;
+    
+    // Cargar scripts si es necesario
+    function loadScript(src, cb) {
+        if (document.querySelector('script[src="'+src+'"]')) { cb && cb(); return; }
+        const s = document.createElement('script');
+        s.src = src; s.onload = cb;
+        document.head.appendChild(s);
+    }
+    
+    loadScript('https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js', () => {
+        loadScript('https://cdn.jsdelivr.net/npm/ar.js@2.2.2/aframe/build/aframe-ar.min.js', () => {
+            document.getElementById('arjsStatus').innerHTML = '🎯 Buscando marcador HIRO - Coloca el marcador impreso frente a la cámara';
+            setTimeout(() => {
+                if(document.getElementById('arjsStatus')) 
+                    document.getElementById('arjsStatus').innerHTML = '✅ Tracking activo - El modelo sigue al marcador';
+            }, 3000);
+        });
+    });
+}
+
+function closeARjsTracking() {
+    const overlay = document.getElementById('arjsOverlay');
+    if (overlay) {
+        const video = overlay.querySelector('video');
+        if (video && video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
+        overlay.remove();
+        arjsActive = false;
+        showNotification('Tracking cerrado','info');
+    }
+}
+
+function downloadHiroMarker() {
+    // Crear canvas con el marcador HIRO
+    const canvas = document.createElement('canvas');
+    canvas.width = 500;
+    canvas.height = 500;
+    const ctx = canvas.getContext('2d');
+    
+    // Fondo blanco
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Borde negro
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 20;
+    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+    
+    // Patrón HIRO simplificado (círculos negros en esquinas)
+    ctx.fillStyle = '#000000';
+    const size = 80;
+    // Esquina superior izquierda
+    ctx.fillRect(40, 40, size, size);
+    // Esquina superior derecha
+    ctx.fillRect(canvas.width - 40 - size, 40, size, size);
+    // Esquina inferior izquierda
+    ctx.fillRect(40, canvas.height - 40 - size, size, size);
+    // Círculo central (opcional)
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height/2, 60, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Texto informativo
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('HIRO MARKER', canvas.width/2, canvas.height - 50);
+    ctx.font = '16px Arial';
+    ctx.fillText('Para tracking AR', canvas.width/2, canvas.height - 20);
+    
+    const a = document.createElement('a');
+    a.download = 'hiro-marker-ar.png';
+    a.href = canvas.toDataURL();
+    a.click();
+    showNotification('Marcador HIRO descargado - Imprímelo y apunta con la cámara','success');
+}
+
+// ══════════════════════════════════════════════
+//  INIT AR VIEWER
 // ══════════════════════════════════════════════
 function initARViewer() {
-    const params   = new URLSearchParams(location.search);
+    const params = new URLSearchParams(location.search);
     if (params.get('mode') !== 'viewer') return;
-
-    const modelUrl  = params.get('model');
-    const modelName = params.get('name') || 'Modelo 3D';
-    if (!modelUrl) return;
-
-    // Show AR mode
+    
+    currentModelUrl = decodeURIComponent(params.get('model') || '');
+    currentModelName = params.get('name') || 'Modelo 3D';
+    if (!currentModelUrl) return;
+    
     document.getElementById('managerMode').style.display = 'none';
     document.getElementById('arMode').classList.add('active');
-    document.getElementById('arModelTitle').textContent = modelName;
-
-    const decodedUrl = decodeURIComponent(modelUrl);
+    document.getElementById('arModelTitle').textContent = currentModelName;
+    
     const viewer = document.getElementById('arModelViewer');
-    viewer.src = decodedUrl;
-
+    viewer.src = currentModelUrl;
+    
     viewer.addEventListener('load', () => {
-        document.getElementById('arStatus').textContent = '✅ Listo — usa "Activar AR" para anclar sobre el QR impreso';
+        document.getElementById('arStatus').innerHTML = '✅ Modelo listo - Usa "Tracking por Marcador Hiro" para AR con anclaje';
+        loadSavedTransform();
     }, {once:true});
+    
     viewer.addEventListener('error', () => {
-        document.getElementById('arStatus').textContent = '❌ Error cargando el modelo. Verifica la URL.';
+        document.getElementById('arStatus').innerHTML = '❌ Error cargando el modelo';
+        showNotification('Error al cargar el modelo','error');
     }, {once:true});
-    viewer.addEventListener('ar-status', e => {
-        const s = e.detail.status;
-        if (s==='session-started') document.getElementById('arStatus').textContent = '🎯 AR activo — coloca la cámara sobre el QR impreso';
-        if (s==='failed')          document.getElementById('arStatus').textContent = '⚠️ AR falló. Prueba en Chrome/Android o Safari/iOS';
-    });
-
-    // Listo — el tracking se hace al activar AR
-    document.getElementById('arStatus').textContent =
-        '✅ Modelo listo — pulsa "Activar AR" para anclar sobre el QR';
-}
-
-// ── ACTIVAR AR: usa WebXR nativo de model-viewer + detección QR por cámara ──
-function triggerAR() {
-    const viewer = document.getElementById('arModelViewer');
-
-    // Opción 1: WebXR nativo (Chrome Android / Safari iOS)
-    if (viewer.canActivateAR) {
-        viewer.activateAR();
-        document.getElementById('arStatus').textContent = '📱 AR activo — posiciona sobre una superficie plana';
-        return;
-    }
-
-    // Opción 2: Tracking QR con BarcodeDetector + cámara overlay
-    if ('BarcodeDetector' in window) {
-        launchQRTracking();
-        return;
-    }
-
-    // Sin soporte
-    document.getElementById('arStatus').textContent = '⚠️ AR no disponible. Usa Chrome en Android o Safari en iOS.';
-    showNotification('AR no disponible en este navegador', 'error');
-}
-
-// ── QR TRACKING: BarcodeDetector + canvas overlay ────────────────────────────
-let _qrTrackingActive = false;
-let _qrStream = null;
-
-async function launchQRTracking() {
-    if (_qrTrackingActive) return;
-    _qrTrackingActive = true;
-
-    const overlay = document.createElement('div');
-    overlay.id = 'qrOverlay';
-    overlay.style.cssText = `
-        position:fixed;inset:0;z-index:9990;background:#000;
-        display:flex;flex-direction:column;align-items:center;justify-content:center;`;
-
-    overlay.innerHTML = `
-        <button id="qrCloseBtn" style="position:absolute;top:16px;left:16px;z-index:9999;
-            background:rgba(0,0,0,.75);color:white;border:1px solid rgba(255,255,255,.3);
-            padding:8px 15px;border-radius:8px;font-size:13px;cursor:pointer;">✕ Cerrar</button>
-        <div id="qrStatusMsg" style="position:absolute;top:16px;left:50%;transform:translateX(-50%);
-            z-index:9999;background:rgba(0,0,0,.75);color:white;padding:8px 16px;
-            border-radius:20px;font-size:12px;white-space:nowrap;text-align:center;">
-            Iniciando cámara…</div>
-
-        <!-- Video feed de la cámara trasera -->
-        <video id="qrVideo" autoplay playsinline muted
-            style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"></video>
-
-        <!-- Canvas para overlay del modelo 3D sobre el QR -->
-        <canvas id="qrCanvas" style="position:absolute;inset:0;width:100%;height:100%;
-            pointer-events:none;"></canvas>
-
-        <!-- Visor 3D pequeño que se posiciona sobre el QR detectado -->
-        <div id="qrModelBox" style="
-            position:absolute;display:none;
-            width:220px;height:220px;
-            transform:translate(-50%,-50%);
-            pointer-events:none;">
-            <model-viewer id="qrModelViewer"
-                auto-rotate camera-controls
-                shadow-intensity="0.8" environment-image="neutral" exposure="1"
-                style="width:100%;height:100%;background:transparent;border-radius:12px;">
-            </model-viewer>
-        </div>
-
-        <!-- Retícula de escaneo -->
-        <div id="scanReticle" style="position:absolute;top:50%;left:50%;
-            transform:translate(-50%,-50%);width:200px;height:200px;
-            border:2px solid rgba(124,58,237,.8);border-radius:16px;
-            box-shadow:0 0 0 4000px rgba(0,0,0,.4);pointer-events:none;">
-            <div style="position:absolute;top:-2px;left:-2px;width:24px;height:24px;
-                border-top:3px solid #7c3aed;border-left:3px solid #7c3aed;border-radius:4px 0 0 0;"></div>
-            <div style="position:absolute;top:-2px;right:-2px;width:24px;height:24px;
-                border-top:3px solid #7c3aed;border-right:3px solid #7c3aed;border-radius:0 4px 0 0;"></div>
-            <div style="position:absolute;bottom:-2px;left:-2px;width:24px;height:24px;
-                border-bottom:3px solid #7c3aed;border-left:3px solid #7c3aed;border-radius:0 0 0 4px;"></div>
-            <div style="position:absolute;bottom:-2px;right:-2px;width:24px;height:24px;
-                border-bottom:3px solid #7c3aed;border-right:3px solid #7c3aed;border-radius:0 0 4px 0;"></div>
-        </div>
-    `;
-
-    document.body.appendChild(overlay);
-    document.getElementById('qrCloseBtn').addEventListener('click', closeQRTracking);
-
-    const video    = document.getElementById('qrVideo');
-    const modelBox = document.getElementById('qrModelBox');
-    const qrViewer = document.getElementById('qrModelViewer');
-    const statusEl = document.getElementById('qrStatusMsg');
-    const reticle  = document.getElementById('scanReticle');
-
-    // Cargar el mismo modelo en el visor del overlay
-    const mainSrc = document.getElementById('arModelViewer').src;
-    qrViewer.src  = mainSrc;
-
-    // Aplicar los transforms que el usuario configuró en el panel de edición
-    try {
-        const rx = parseFloat(document.getElementById('rotX').value)||0;
-        const ry = parseFloat(document.getElementById('rotY').value)||0;
-        const rz = parseFloat(document.getElementById('rotZ').value)||0;
-        qrViewer.setAttribute('orientation', `${rx}deg ${ry}deg ${rz}deg`);
-    } catch(e){}
-
-    // Pedir cámara trasera
-    try {
-        _qrStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} }
-        });
-        video.srcObject = _qrStream;
-    } catch(err) {
-        statusEl.textContent = '❌ Sin acceso a cámara. Verifica permisos.';
-        return;
-    }
-
-    statusEl.textContent = '🔍 Apunta al código QR…';
-
-    // Detector de QR
-    const detector = new BarcodeDetector({ formats: ['qr_code'] });
-    let   lastQRValue = '';
-    let   modelVisible = false;
-    let   scanInterval;
-
-    // Línea de escaneo animada en el reticle
-    const scanLine = document.createElement('div');
-    scanLine.style.cssText = `
-        position:absolute;left:4px;right:4px;height:2px;
-        background:linear-gradient(90deg,transparent,#7c3aed,transparent);
-        animation:scanAnim 1.6s ease-in-out infinite;top:50%;`;
-    reticle.appendChild(scanLine);
-
-    const styleEl = document.createElement('style');
-    styleEl.textContent = `@keyframes scanAnim{0%,100%{top:10%}50%{top:90%}}`;
-    document.head.appendChild(styleEl);
-
-    scanInterval = setInterval(async () => {
-        if (!_qrTrackingActive) { clearInterval(scanInterval); return; }
-        if (video.readyState < 2) return;
-
-        try {
-            const barcodes = await detector.detect(video);
-            if (barcodes.length > 0) {
-                const qr = barcodes[0];
-                const val = qr.rawValue;
-
-                // Posicionar el visor 3D sobre el bounding box del QR
-                const vw = video.videoWidth  || video.offsetWidth;
-                const vh = video.videoHeight || video.offsetHeight;
-                const dw = overlay.offsetWidth;
-                const dh = overlay.offsetHeight;
-                const scaleX = dw / vw;
-                const scaleY = dh / vh;
-
-                const cx = ((qr.boundingBox.x + qr.boundingBox.width  / 2) * scaleX);
-                const cy = ((qr.boundingBox.y + qr.boundingBox.height / 2) * scaleY);
-                const size = Math.max(qr.boundingBox.width * scaleX, qr.boundingBox.height * scaleY) * 2.2;
-
-                modelBox.style.left   = cx + 'px';
-                modelBox.style.top    = cy + 'px';
-                modelBox.style.width  = size + 'px';
-                modelBox.style.height = size + 'px';
-                modelBox.style.display = 'block';
-
-                reticle.style.display = 'none';
-                scanLine.style.animation = 'none';
-
-                if (!modelVisible) {
-                    modelVisible = true;
-                    statusEl.textContent = '✅ QR detectado — modelo anclado';
-                }
-
-                // Si el QR apunta a una URL de viewer diferente, actualizar modelo
-                if (val !== lastQRValue && val.includes('mode=viewer')) {
-                    lastQRValue = val;
-                    try {
-                        const p = new URL(val);
-                        const newSrc = p.searchParams.get('model');
-                        if (newSrc) qrViewer.src = decodeURIComponent(newSrc);
-                    } catch(e) {}
-                }
-            } else {
-                // QR perdido
-                if (modelVisible) {
-                    modelBox.style.display = 'none';
-                    reticle.style.display  = 'block';
-                    scanLine.style.animation = 'scanAnim 1.6s ease-in-out infinite';
-                    modelVisible = false;
-                    statusEl.textContent = '🔍 QR perdido — vuelve a apuntar…';
-                }
-            }
-        } catch(e) { /* detector error, continuar */ }
-    }, 120); // ~8 fps de detección
-
-    overlay._scanInterval = scanInterval;
-    overlay._styleEl = styleEl;
-}
-
-function closeQRTracking() {
-    _qrTrackingActive = false;
-    const overlay = document.getElementById('qrOverlay');
-    if (overlay) {
-        clearInterval(overlay._scanInterval);
-        if (overlay._styleEl) overlay._styleEl.remove();
-        overlay.remove();
-    }
-    if (_qrStream) {
-        _qrStream.getTracks().forEach(t => t.stop());
-        _qrStream = null;
-    }
-    showNotification('Tracking cerrado', 'info');
 }
 
 // ══════════════════════════════════════════════
-//  INIT
+//  INICIALIZACIÓN
 // ══════════════════════════════════════════════
 loadSavedModels();
 initARViewer();
