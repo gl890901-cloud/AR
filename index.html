@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR Model Manager - Tracking por QR</title>
+    <!-- Cargamos librerías estables de A-Frame y AR.js -->
     <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/rawgit/jeromeetienne/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs2@0.0.2/qrcode.min.js"></script>
     <style>
@@ -45,24 +46,27 @@
         .btn-row { display:flex; gap:8px; margin-top:10px; }
         .btn-row .btn { margin-top:0; }
         .qr-result { text-align:center; }
-        .qr-box { display:inline-block; background:white; padding:16px; border-radius:14px; border:1px solid var(--border); margin:14px 0; }
+        
+        /* Contenedor del marcador combinado (Fondo blanco -> borde negro -> QR al centro) */
+        .qr-container-wrapper { display: inline-block; background: white; padding: 20px; border-radius: 14px; border: 1px solid var(--border); margin: 14px 0; }
+        .ar-tracking-marker { width: 260px; height: 260px; background: black; display: flex; align-items: center; justify-content: center; position: relative; }
+        .ar-tracking-marker::before { content: ''; position: absolute; inset: 32px; background: white; }
+        .qr-box { position: relative; z-index: 10; display: flex; align-items: center; justify-content: center; }
+        
         .info-box { background:#ede9fe; border-left:3px solid var(--purple); padding:13px; border-radius:0 10px 10px 0; margin:14px 0; font-size:13px; color:#3b2a6e; text-align:left; line-height:1.7; }
         .model-list { display:grid; gap:10px; margin-top:4px; }
         .model-item { background:var(--bg); border:1px solid var(--border); padding:13px 15px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:all .2s; }
         .model-item:hover { border-color:var(--purple); background:var(--purple-light); }
         .model-name { font-weight:600; font-size:14px; color:var(--text); }
         .model-url { font-size:11px; color:var(--muted); font-family:monospace; word-break:break-all; margin-top:2px; }
-        .model-date { font-size:11px; color:var(--muted); margin-top:2px; }
         .delete-btn { background:#fee2e2; color:#dc2626; border:none; padding:6px 11px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:600; flex-shrink:0; margin-left:10px; }
-        .delete-btn:hover { background:#fecaca; }
-        .empty-state { text-align:center; color:var(--muted); padding:28px 20px; font-size:14px; }
-        .empty-state span { font-size:2.5rem; display:block; margin-bottom:8px; }
+        
         #notification { position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--text); color:white; padding:11px 20px; border-radius:30px; font-size:14px; font-weight:500; z-index:9999; transition:transform .35s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; pointer-events:none; }
         #notification.show { transform:translateX(-50%) translateY(0); }
         #notification.success { background:var(--success); }
         #notification.error { background:var(--error); }
 
-        /* AR MODE - Limpio y optimizado */
+        /* AR MODE */
         #arMode { display:none; position:fixed; inset:0; z-index:10000; background:#000; flex-direction:column; }
         #arMode.active { display:flex; }
         .ar-header { position:absolute; top:0; left:0; right:0; background:rgba(0,0,0,.5); backdrop-filter:blur(4px); padding:12px 16px; display:flex; justify-content:space-between; align-items:center; z-index:20; }
@@ -72,7 +76,6 @@
         .scene-container { width:100%; height:100%; position:relative; overflow:hidden; }
         a-scene { width:100% !important; height:100% !important; position:absolute !important; top:0; left:0; }
 
-        /* Estilos nuevos para los controles de edición dentro del Manager */
         .manager-edit-panel { margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; }
         .slider-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
         .slider-row label { color:var(--text); font-size:13px; font-weight: 600; width:60px; }
@@ -86,7 +89,7 @@
 <div id="managerMode">
     <div class="header">
         <h1>🎨 AR Model Manager</h1>
-        <p>Genera QR que funcionan como marcador de tracking para modelos 3D</p>
+        <p>Genera QR enmarcados que sirven directamente como trackers estables de AR</p>
     </div>
 
     <div class="tabs">
@@ -100,16 +103,16 @@
             <div class="input-group">
                 <label>🔗 URL del modelo 3D (.glb / .gltf)</label>
                 <input type="text" id="modelUrl" placeholder="https://ejemplo.com/modelo.glb" oninput="onUrlInput()">
-                <small>⚠️ La URL debe ser accesible públicamente (CORS habilitado).</small>
+                <small>⚠️ Asegúrate de que el servidor remoto tenga las políticas CORS activas.</small>
             </div>
             <div class="input-group">
-                <label>🏷️ Nombre del modelo (opcional)</label>
-                <input type="text" id="modelName" placeholder="Mi Modelo 3D">
+                <label>🏷️ Nombre del modelo</label>
+                <input type="text" id="modelName" placeholder="Mi Objeto 3D">
             </div>
 
             <div class="preview-wrap">
                 <div class="preview-placeholder" id="previewPlaceholder">
-                    <span>📦</span>Ingresa una URL válida para previsualizar
+                    <span>📦</span>Introduce una URL para ver la previsualización
                 </div>
                 <model-viewer id="inlineViewer" style="display:none;width:100%;height:100%;"
                     camera-controls auto-rotate shadow-intensity="1"
@@ -118,15 +121,15 @@
             </div>
 
             <div class="manager-edit-panel">
-                <h2>⚙️ Calibrar Transformación Inicial en AR</h2>
+                <h2>⚙️ Calibrar Posición Inicial en AR</h2>
                 <div class="slider-row">
                     <label>Escala</label>
-                    <input type="range" id="scaleSlider" min="0.05" max="3" step="0.01" value="0.5" oninput="updateLivePreviewTransform()">
-                    <span id="scaleVal">0.50</span>
+                    <input type="range" id="scaleSlider" min="0.05" max="2" step="0.01" value="0.4" oninput="updateLivePreviewTransform()">
+                    <span id="scaleVal">0.40</span>
                 </div>
                 <div class="slider-row">
                     <label>Pos Y</label>
-                    <input type="range" id="posYSlider" min="-2" max="2" step="0.05" value="0" oninput="updateLivePreviewTransform()">
+                    <input type="range" id="posYSlider" min="-1" max="2" step="0.05" value="0" oninput="updateLivePreviewTransform()">
                     <span id="posYVal">0.00</span>
                 </div>
                 <div class="slider-row">
@@ -138,22 +141,27 @@
 
             <div class="btn-row">
                 <button class="btn btn-outline" onclick="loadPreview()">🔍 Previsualizar</button>
-                <button class="btn btn-primary" onclick="generateARCode()">🎯 Generar QR con Tracking</button>
+                <button class="btn btn-primary" onclick="generateARCode()">🎯 Generar QR Tracker</button>
             </div>
         </div>
 
         <div class="card" id="qrResultCard" style="display:none;">
-            <h2>📱 Código QR - Marcador de Tracking</h2>
+            <h2>📱 Marcador de Tracking Generado</h2>
             <div class="qr-result">
-                <div class="qr-box" id="qrcode"></div>
+                <!-- El secreto está aquí: El QR se genera dentro de una caja con borde negro estandarizado tipo Hiro/Pattern -->
+                <div class="qr-container-wrapper" id="printArea">
+                    <div class="ar-tracking-marker">
+                        <div class="qr-box" id="qrcode"></div>
+                    </div>
+                </div>
                 <div class="info-box">
-                    <strong>📌 CÓMO FUNCIONA:</strong><br>
-                    1. Imprime este QR o muéstralo en otra pantalla.<br>
-                    2. Escanéalo con tu celular para abrir esta app.<br>
-                    3. Al entrar al modo AR, enfoca el QR y el objeto se posicionará con la escala y rotación configuradas arriba.
+                    <strong>📌 INSTRUCCIONES CRÍTICAS:</strong><br>
+                    1. Escanea el QR interno con tu app nativa para abrir la web.<br>
+                    2. Cuando cargue la cámara de Realidad Aumentada, **enfoca TODO el cuadro (incluyendo el borde negro exterior)**.<br>
+                    3. El modelo se anclará de forma simétrica sobre el centro del QR.
                 </div>
                 <div class="btn-row">
-                    <button class="btn btn-secondary" onclick="downloadQR()">💾 Descargar QR</button>
+                    <button class="btn btn-secondary" onclick="downloadQR()">💾 Descargar código</button>
                     <button class="btn btn-outline" onclick="copyARLink()">🔗 Copiar enlace</button>
                 </div>
             </div>
@@ -171,19 +179,17 @@
 
 <div id="arMode">
     <div class="ar-header">
-        <button class="ar-back-btn" onclick="exitAR()">← Volver al Manager</button>
-        <h3 id="arTitle">Realidad Aumentada</h3>
-        <div style="width:40px;"></div> </div>
-    <div class="ar-status" id="arStatusText">🔍 Buscando marcador QR...</div>
+        <button class="ar-back-btn" onclick="exitAR()">← Volver</button>
+        <h3 id="arTitle">Cargando AR...</h3>
+        <div style="width:40px;"></div>
+    </div>
+    <div class="ar-status" id="arStatusText">🔍 Buscando el marcador (borde negro + QR)...</div>
     <div class="scene-container" id="sceneContainer"></div>
 </div>
 
 <div id="notification"></div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-//  ESTADOS Y CONFIGURACIONES
-// ═══════════════════════════════════════════════════════════════
 let savedModels = [];
 let currentQRUrl = '';
 let arSceneActive = false;
@@ -205,7 +211,6 @@ function showNotification(msg, type = 'info') {
     setTimeout(() => n.classList.remove('show'), 2800);
 }
 
-// Actualiza los textos de los sliders en el Manager de manera reactiva
 function updateLivePreviewTransform() {
     const scale = parseFloat(document.getElementById('scaleSlider').value);
     const posY = parseFloat(document.getElementById('posYSlider').value);
@@ -216,25 +221,6 @@ function updateLivePreviewTransform() {
     document.getElementById('rotYVal').textContent = rotY + '°';
 }
 
-function saveCurrentTransformToLocalStorage(url) {
-    const transform = {
-        scale: parseFloat(document.getElementById('scaleSlider').value),
-        posY: parseFloat(document.getElementById('posYSlider').value),
-        rotY: parseFloat(document.getElementById('rotYSlider').value)
-    };
-    const saved = JSON.parse(localStorage.getItem('ar_model_transforms') || '{}');
-    saved[url] = transform;
-    localStorage.setItem('ar_model_transforms', JSON.stringify(saved));
-}
-
-function getTransformFromLocalStorage(url) {
-    const saved = JSON.parse(localStorage.getItem('ar_model_transforms') || '{}');
-    return saved[url] || { scale: 0.5, posY: 0, rotY: 0 };
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  MANEJO DE UI / TABS Y LISTADO
-// ═══════════════════════════════════════════════════════════════
 function loadSavedModels() {
     try { savedModels = JSON.parse(localStorage.getItem('ar_models') || '[]'); } catch(e) { savedModels = []; }
     renderModelList();
@@ -261,18 +247,13 @@ function renderModelList() {
 }
 
 function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-function deleteModel(i) { if (!confirm('¿Eliminar?')) return; savedModels.splice(i, 1); persistModels(); showNotification('Eliminado', 'success'); }
-function clearAllModels() { if (!confirm('¿Eliminar todos?')) return; savedModels = []; persistModels(); showNotification('Lista limpiada', 'success'); }
+function deleteModel(i) { savedModels.splice(i, 1); persistModels(); }
+function clearAllModels() { savedModels = []; persistModels(); }
 
 function loadModelFromList(i) {
     const m = savedModels[i];
     document.getElementById('modelUrl').value = m.url;
     document.getElementById('modelName').value = m.name || '';
-    const t = getTransformFromLocalStorage(m.url);
-    document.getElementById('scaleSlider').value = t.scale;
-    document.getElementById('posYSlider').value = t.posY;
-    document.getElementById('rotYSlider').value = t.rotY;
-    updateLivePreviewTransform();
     switchTab('create');
     loadPreview();
 }
@@ -290,7 +271,7 @@ function loadPreview() {
     const raw = convertToRawUrl(document.getElementById('modelUrl').value.trim());
     const viewer = document.getElementById('inlineViewer');
     const ph = document.getElementById('previewPlaceholder');
-    if (!raw) { return; }
+    if (!raw) return;
     ph.style.display = 'none';
     viewer.style.display = 'block';
     viewer.src = raw;
@@ -304,7 +285,7 @@ function switchTab(tab) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  GENERACIÓN DEL QR CON METADATOS DE TRANSFORMACIÓN EN URL
+//  GENERAR QR ENMARCADO
 // ═══════════════════════════════════════════════════════════════
 function generateARCode() {
     const modelUrl = document.getElementById('modelUrl').value.trim();
@@ -312,7 +293,7 @@ function generateARCode() {
     const rawUrl = convertToRawUrl(modelUrl);
     
     if (!rawUrl || !isModelUrl(rawUrl)) { 
-        showNotification('Ingresa una URL de modelo válida (.glb o .gltf)', 'error'); 
+        showNotification('URL del modelo inválida', 'error'); 
         return; 
     }
 
@@ -320,31 +301,30 @@ function generateARCode() {
     const posY = parseFloat(document.getElementById('posYSlider').value);
     const rotY = parseFloat(document.getElementById('rotYSlider').value);
 
-    // Guardar localmente
-    saveCurrentTransformToLocalStorage(rawUrl);
-
-    // Guardamos las transformaciones en la URL como Query Params estratégicos para que el cliente AR los lea directamente
+    // Guardamos las transformaciones directamente en los parámetros de la URL
     currentQRUrl = `${window.location.origin}${window.location.pathname}?mode=ar&model=${encodeURIComponent(rawUrl)}&name=${encodeURIComponent(modelName || 'Objeto AR')}&s=${scale}&y=${posY}&r=${rotY}`;
 
     const qrDiv = document.getElementById('qrcode');
     qrDiv.innerHTML = '';
-    new QRCode(qrDiv, { text: currentQRUrl, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
+    // Un tamaño controlado para que encaje perfectamente dentro del borde negro del Tracking
+    new QRCode(qrDiv, { text: currentQRUrl, width: 170, height: 170, correctLevel: QRCode.CorrectLevel.M });
 
     document.getElementById('qrResultCard').style.display = 'block';
     document.getElementById('qrResultCard').scrollIntoView({ behavior: 'smooth' });
 
     if (!savedModels.some(m => m.url === rawUrl)) {
-        savedModels.unshift({ url: rawUrl, name: modelName || 'Sin Nombre', date: new Date().toISOString() });
+        savedModels.unshift({ url: rawUrl, name: modelName || 'Objeto 3D', date: new Date().toISOString() });
         persistModels();
     }
-    showNotification('✅ QR Generador con transformaciones guardadas', 'success');
+    showNotification('✅ QR e Imagen de Tracking generados en sincronía', 'success');
 }
 
 function downloadQR() {
+    // Para conservar el marco negro al descargar, se puede capturar el área del contenedor completo
     const canvas = document.querySelector('#qrcode canvas');
     if (canvas) {
         const a = document.createElement('a');
-        a.download = `ar-qr-${Date.now()}.png`;
+        a.download = `ar-target-marker.png`;
         a.href = canvas.toDataURL();
         a.click();
     }
@@ -352,27 +332,23 @@ function downloadQR() {
 function copyARLink() { navigator.clipboard.writeText(currentQRUrl).then(() => showNotification('Enlace copiado', 'success')); }
 
 // ═══════════════════════════════════════════════════════════════
-//  VISUALIZADOR AR (MOTOR INTEGRADO DE AR.JS + AFRAME)
+//  INICIALIZACIÓN DE ESCENA CON TRACKING DE MARCADOR INTEGRADO
 // ═══════════════════════════════════════════════════════════════
-function exitAR() {
-    window.location.href = window.location.pathname; // Limpia la pantalla limpiando los Query Params de la URL de forma segura
-}
+function exitAR() { window.location.href = window.location.pathname; }
 
 function initARMode() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') !== 'ar') return;
     
     const modelSrc = decodeURIComponent(params.get('model') || '');
-    const modelDisplayName = decodeURIComponent(params.get('name') || 'Modelo AR');
+    const modelDisplayName = decodeURIComponent(params.get('name') || 'Visor AR');
     
-    // Rescatar transformaciones directo desde la URL del QR escaneado
-    const scale = params.get('s') || "0.5";
+    const scale = params.get('s') || "0.4";
     const posY = params.get('y') || "0";
     const rotY = params.get('r') || "0";
 
     if (!modelSrc) return;
     
-    // Transición visual limpia entre manager y cámara
     document.getElementById('managerMode').style.display = 'none';
     document.getElementById('arMode').classList.add('active');
     document.getElementById('arTitle').textContent = modelDisplayName;
@@ -380,10 +356,11 @@ function initARMode() {
     const container = document.getElementById('sceneContainer');
     container.innerHTML = '';
     
-    // Inyección del código HTML de la escena una vez cargadas las dependencias nativas del head
+    // Al usar la propiedad "hiro" de AR.js, la cámara buscará la estructura cuadrada negra.
+    // Al meter nuestro código QR en el centro del cuadrado, matamos dos pájaros de un tiro.
     const sceneHTML = `
         <a-scene embedded 
-            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; maxDetectionRate: 30;"
             vr-mode-ui="enabled: false" 
             renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;">
             
@@ -391,6 +368,7 @@ function initARMode() {
                 <a-asset-item id="arModel" src="${modelSrc}"></a-asset-item>
             </a-assets>
 
+            <!-- Buscamos la plantilla física simétrica en la que se renderizó el QR -->
             <a-marker preset="hiro" id="qrMarker" emitevents="true">
                 <a-entity id="arModelEntity"
                     gltf-model="#arModel"
@@ -407,23 +385,21 @@ function initARMode() {
     container.innerHTML = sceneHTML;
     arSceneActive = true;
     
-    // Handlers de tracking estables
     setTimeout(() => {
         const marker = document.querySelector('#qrMarker');
         if (marker) {
             marker.addEventListener('markerFound', () => {
-                document.getElementById('arStatusText').innerHTML = '✅ Marcador detectado';
+                document.getElementById('arStatusText').innerHTML = '✅ Objeto 3D Fijado';
                 document.getElementById('arStatusText').style.background = "rgba(5, 150, 105, 0.8)";
             });
             marker.addEventListener('markerLost', () => {
-                document.getElementById('arStatusText').innerHTML = '🔍 Buscando marcador QR...';
+                document.getElementById('arStatusText').innerHTML = '🔍 Buscando el marcador (borde negro + QR)...';
                 document.getElementById('arStatusText').style.background = "rgba(0,0,0,.7)";
             });
         }
-    }, 1500);
+    }, 1200);
 }
 
-// Inicialización controlada
 window.addEventListener('DOMContentLoaded', () => {
     loadSavedModels();
     updateLivePreviewTransform();
