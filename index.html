@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR Model Manager - Tracking por QR</title>
-    <!-- Cargamos librerías estables de A-Frame y AR.js -->
-    <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs2@0.0.2/qrcode.min.js"></script>
+    
     <style>
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         :root {
@@ -17,6 +19,19 @@
             --border:#e5e2f5; --success:#059669; --error:#dc2626;
         }
         body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-height:100vh; color:var(--text); }
+
+        /* Corrección crítica para evitar la pantalla negra en AR.js */
+        body.a-composite-video+canvas {
+            display: inline-block !important;
+        }
+        video {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 1 !important;
+        }
 
         #managerMode { max-width:800px; margin:0 auto; padding:20px; }
         .header { text-align:center; padding:36px 20px 26px; }
@@ -47,7 +62,6 @@
         .btn-row .btn { margin-top:0; }
         .qr-result { text-align:center; }
         
-        /* Contenedor del marcador combinado (Fondo blanco -> borde negro -> QR al centro) */
         .qr-container-wrapper { display: inline-block; background: white; padding: 20px; border-radius: 14px; border: 1px solid var(--border); margin: 14px 0; }
         .ar-tracking-marker { width: 260px; height: 260px; background: black; display: flex; align-items: center; justify-content: center; position: relative; }
         .ar-tracking-marker::before { content: ''; position: absolute; inset: 32px; background: white; }
@@ -61,20 +75,19 @@
         .model-url { font-size:11px; color:var(--muted); font-family:monospace; word-break:break-all; margin-top:2px; }
         .delete-btn { background:#fee2e2; color:#dc2626; border:none; padding:6px 11px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:600; flex-shrink:0; margin-left:10px; }
         
-        #notification { position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--text); color:white; padding:11px 20px; border-radius:30px; font-size:14px; font-weight:500; z-index:9999; transition:transform .35s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; pointer-events:none; }
+        #notification { position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--text); color:white; padding:11px 20px; border-radius:30px; font-size:14px; font-weight:500; z-index:99999; transition:transform .35s; white-space:nowrap; pointer-events:none; }
         #notification.show { transform:translateX(-50%) translateY(0); }
         #notification.success { background:var(--success); }
         #notification.error { background:var(--error); }
 
-        /* AR MODE */
-        #arMode { display:none; position:fixed; inset:0; z-index:10000; background:#000; flex-direction:column; }
+        /* AR MODE - Reconfigurado para superponerse correctamente al video inyectado */
+        #arMode { display:none; position:fixed; inset:0; z-index:10000; background:transparent; flex-direction:column; }
         #arMode.active { display:flex; }
-        .ar-header { position:absolute; top:0; left:0; right:0; background:rgba(0,0,0,.5); backdrop-filter:blur(4px); padding:12px 16px; display:flex; justify-content:space-between; align-items:center; z-index:20; }
+        .ar-header { position:absolute; top:0; left:0; right:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); padding:12px 16px; display:flex; justify-content:space-between; align-items:center; z-index:10002; }
         .ar-header h3 { color:white; font-size:14px; font-weight:600; }
-        .ar-back-btn { background:rgba(255,255,255,.2); border:none; color:white; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:13px; font-weight: 600; }
-        .ar-status { position:absolute; top:60px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.7); padding:6px 14px; border-radius:20px; color:white; font-size:12px; z-index:20; white-space:nowrap; }
-        .scene-container { width:100%; height:100%; position:relative; overflow:hidden; }
-        a-scene { width:100% !important; height:100% !important; position:absolute !important; top:0; left:0; }
+        .ar-back-btn { background:rgba(255,255,255,.2); border:none; color:white; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; }
+        .ar-status { position:absolute; top:60px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.7); padding:6px 14px; border-radius:20px; color:white; font-size:12px; z-index:10002; white-space:nowrap; }
+        .scene-container { width:100%; height:100%; position:absolute; inset:0; z-index:10001; }
 
         .manager-edit-panel { margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; }
         .slider-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
@@ -103,7 +116,7 @@
             <div class="input-group">
                 <label>🔗 URL del modelo 3D (.glb / .gltf)</label>
                 <input type="text" id="modelUrl" placeholder="https://ejemplo.com/modelo.glb" oninput="onUrlInput()">
-                <small>⚠️ Asegúrate de que el servidor remoto tenga las políticas CORS activas.</small>
+                <small>⚠️ La URL debe ser directa y tener habilitado CORS.</small>
             </div>
             <div class="input-group">
                 <label>🏷️ Nombre del modelo</label>
@@ -148,17 +161,16 @@
         <div class="card" id="qrResultCard" style="display:none;">
             <h2>📱 Marcador de Tracking Generado</h2>
             <div class="qr-result">
-                <!-- El secreto está aquí: El QR se genera dentro de una caja con borde negro estandarizado tipo Hiro/Pattern -->
                 <div class="qr-container-wrapper" id="printArea">
                     <div class="ar-tracking-marker">
                         <div class="qr-box" id="qrcode"></div>
                     </div>
                 </div>
                 <div class="info-box">
-                    <strong>📌 INSTRUCCIONES CRÍTICAS:</strong><br>
-                    1. Escanea el QR interno con tu app nativa para abrir la web.<br>
-                    2. Cuando cargue la cámara de Realidad Aumentada, **enfoca TODO el cuadro (incluyendo el borde negro exterior)**.<br>
-                    3. El modelo se anclará de forma simétrica sobre el centro del QR.
+                    <strong>📌 INSTRUCCIONES:</strong><br>
+                    1. Escanea el QR interno para abrir la web en tu celular.<br>
+                    2. Acepta los <b>permisos de cámara</b> si el navegador te lo solicita.<br>
+                    3. Enfoca el recuadro negro completo para proyectar el modelo.
                 </div>
                 <div class="btn-row">
                     <button class="btn btn-secondary" onclick="downloadQR()">💾 Descargar código</button>
@@ -183,7 +195,7 @@
         <h3 id="arTitle">Cargando AR...</h3>
         <div style="width:40px;"></div>
     </div>
-    <div class="ar-status" id="arStatusText">🔍 Buscando el marcador (borde negro + QR)...</div>
+    <div class="ar-status" id="arStatusText">🔍 Inicializando cámara...</div>
     <div class="scene-container" id="sceneContainer"></div>
 </div>
 
@@ -192,7 +204,6 @@
 <script>
 let savedModels = [];
 let currentQRUrl = '';
-let arSceneActive = false;
 
 function convertToRawUrl(url) {
     let u = url.trim();
@@ -284,9 +295,6 @@ function switchTab(tab) {
     if (tab === 'list') renderModelList();
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  GENERAR QR ENMARCADO
-// ═══════════════════════════════════════════════════════════════
 function generateARCode() {
     const modelUrl = document.getElementById('modelUrl').value.trim();
     const modelName = document.getElementById('modelName').value.trim();
@@ -301,12 +309,10 @@ function generateARCode() {
     const posY = parseFloat(document.getElementById('posYSlider').value);
     const rotY = parseFloat(document.getElementById('rotYSlider').value);
 
-    // Guardamos las transformaciones directamente en los parámetros de la URL
     currentQRUrl = `${window.location.origin}${window.location.pathname}?mode=ar&model=${encodeURIComponent(rawUrl)}&name=${encodeURIComponent(modelName || 'Objeto AR')}&s=${scale}&y=${posY}&r=${rotY}`;
 
     const qrDiv = document.getElementById('qrcode');
     qrDiv.innerHTML = '';
-    // Un tamaño controlado para que encaje perfectamente dentro del borde negro del Tracking
     new QRCode(qrDiv, { text: currentQRUrl, width: 170, height: 170, correctLevel: QRCode.CorrectLevel.M });
 
     document.getElementById('qrResultCard').style.display = 'block';
@@ -316,11 +322,10 @@ function generateARCode() {
         savedModels.unshift({ url: rawUrl, name: modelName || 'Objeto 3D', date: new Date().toISOString() });
         persistModels();
     }
-    showNotification('✅ QR e Imagen de Tracking generados en sincronía', 'success');
+    showNotification('✅ QR Tracker generado con éxito', 'success');
 }
 
 function downloadQR() {
-    // Para conservar el marco negro al descargar, se puede capturar el área del contenedor completo
     const canvas = document.querySelector('#qrcode canvas');
     if (canvas) {
         const a = document.createElement('a');
@@ -332,7 +337,7 @@ function downloadQR() {
 function copyARLink() { navigator.clipboard.writeText(currentQRUrl).then(() => showNotification('Enlace copiado', 'success')); }
 
 // ═══════════════════════════════════════════════════════════════
-//  INICIALIZACIÓN DE ESCENA CON TRACKING DE MARCADOR INTEGRADO
+//  VISUALIZADOR AR (CORRECCIÓN PANTALLA NEGRA)
 // ═══════════════════════════════════════════════════════════════
 function exitAR() { window.location.href = window.location.pathname; }
 
@@ -350,17 +355,16 @@ function initARMode() {
     if (!modelSrc) return;
     
     document.getElementById('managerMode').style.display = 'none';
-    document.getElementById('arMode').classList.add('active');
+    document.getElementById('arMode').style.display = 'flex';
     document.getElementById('arTitle').textContent = modelDisplayName;
     
     const container = document.getElementById('sceneContainer');
     container.innerHTML = '';
     
-    // Al usar la propiedad "hiro" de AR.js, la cámara buscará la estructura cuadrada negra.
-    // Al meter nuestro código QR en el centro del cuadrado, matamos dos pájaros de un tiro.
+    // Cambiamos propiedades críticas en arjs: de webcam pasamos a inicialización directa y limpia
     const sceneHTML = `
         <a-scene embedded 
-            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; maxDetectionRate: 30;"
+            arjs="sourceType: webcam; sourceWidth:1280; sourceHeight:720; displayWidth: 1280; displayHeight: 720; debugUIEnabled: false; detectionMode: mono;"
             vr-mode-ui="enabled: false" 
             renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;">
             
@@ -368,7 +372,6 @@ function initARMode() {
                 <a-asset-item id="arModel" src="${modelSrc}"></a-asset-item>
             </a-assets>
 
-            <!-- Buscamos la plantilla física simétrica en la que se renderizó el QR -->
             <a-marker preset="hiro" id="qrMarker" emitevents="true">
                 <a-entity id="arModelEntity"
                     gltf-model="#arModel"
@@ -382,22 +385,27 @@ function initARMode() {
         </a-scene>
     `;
     
-    container.innerHTML = sceneHTML;
-    arSceneActive = true;
-    
+    // Pequeño retardo controlado (timeout) para que el navegador asimile el cambio de layout antes de encender la cámara
     setTimeout(() => {
-        const marker = document.querySelector('#qrMarker');
-        if (marker) {
-            marker.addEventListener('markerFound', () => {
-                document.getElementById('arStatusText').innerHTML = '✅ Objeto 3D Fijado';
-                document.getElementById('arStatusText').style.background = "rgba(5, 150, 105, 0.8)";
-            });
-            marker.addEventListener('markerLost', () => {
-                document.getElementById('arStatusText').innerHTML = '🔍 Buscando el marcador (borde negro + QR)...';
-                document.getElementById('arStatusText').style.background = "rgba(0,0,0,.7)";
-            });
-        }
-    }, 1200);
+        container.innerHTML = sceneHTML;
+        
+        // Listener para actualizar el texto en cuanto la cámara responda
+        setTimeout(() => {
+            const marker = document.querySelector('#qrMarker');
+            document.getElementById('arStatusText').innerHTML = '🔍 Buscando el marcador (borde negro + QR)...';
+            
+            if (marker) {
+                marker.addEventListener('markerFound', () => {
+                    document.getElementById('arStatusText').innerHTML = '✅ Objeto 3D Fijado';
+                    document.getElementById('arStatusText').style.background = "rgba(5, 150, 105, 0.8)";
+                });
+                marker.addEventListener('markerLost', () => {
+                    document.getElementById('arStatusText').innerHTML = '🔍 Buscando el marcador (borde negro + QR)...';
+                    document.getElementById('arStatusText').style.background = "rgba(0,0,0,.7)";
+                });
+            }
+        }, 1000);
+    }, 300);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
