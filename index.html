@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Web AR - Visor 3D Proporcional desde GitHub</title>
+    <title>Web AR - Generador y Tracking sobre QR</title>
+    
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs2@0.0.2/qrcode.min.js"></script>
+
     <style>
         body {
             margin: 0;
@@ -11,6 +16,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #0b0b1a;
         }
+        /* Panel Principal de Control (Computadora) */
         .controls-panel {
             position: fixed;
             bottom: 20px;
@@ -21,7 +27,7 @@
             border-radius: 20px;
             padding: 16px;
             color: white;
-            z-index: 100;
+            z-index: 1000;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -30,6 +36,7 @@
             max-height: 45vh;
             overflow-y: auto;
         }
+        /* Panel de Sliders */
         .transform-panel {
             position: fixed;
             top: 20px;
@@ -40,7 +47,7 @@
             border-radius: 20px;
             padding: 16px;
             color: white;
-            z-index: 100;
+            z-index: 1000;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -54,21 +61,15 @@
                 right: 20px;
                 left: 20px;
                 width: auto;
-                max-height: 40vh;
-                overflow-y: auto;
+                max-height: 35vh;
             }
             .controls-panel {
                 top: 20px;
                 bottom: auto;
                 left: 20px;
                 right: 20px;
-                max-height: 40vh;
+                max-height: 35vh;
             }
-        }
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
         }
         .slider-row {
             display: flex;
@@ -87,6 +88,7 @@
             border-radius: 8px;
             color: white;
             font-size: 13px;
+            width: 93%;
         }
         .qr-container {
             background: white;
@@ -96,8 +98,10 @@
             flex-direction: column;
             align-items: center;
             gap: 8px;
+            width: fit-content;
+            margin: 0 auto;
         }
-        #qrcode img, #qrcode canvas { width: 130px; height: 130px; }
+        #qrcode img, #qrcode canvas { width: 140px; height: 140px; }
         button {
             background: #4c9aff;
             border: none;
@@ -106,7 +110,7 @@
             color: white;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
+            transition: background 0.2s;
             font-size: 13px;
             width: 100%;
         }
@@ -120,175 +124,145 @@
             word-break: break-all;
             border-left: 4px solid #4c9aff;
         }
-        .btn-group { display: flex; gap: 8px; }
-        .danger-btn { background: #aa3e3e; }
-        .danger-btn:hover { background: #8b2f2f; }
-        .success-btn { background: #2e8b57; }
-        .success-btn:hover { background: #236b45; }
-    </style>
-    
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
-            }
+        /* Capa exclusiva del Teléfono */
+        .phone-overlay {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 12px;
+            z-index: 2000;
+            text-align: center;
+            pointer-events: none;
+            display: none;
+            border: 1px solid #4c9aff;
         }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs2@0.0.2/qrcode.min.js"></script>
+        /* Ocultar elementos nativos de A-frame que estorban */
+        .a-enter-vr { display: none !important; }
+    </style>
 </head>
 <body>
 
+    <div class="phone-overlay" id="phoneOverlay">
+        📷 Enfoca el código QR impreso o en pantalla para proyectar el objeto
+    </div>
+
     <div class="controls-panel" id="controlsPanel">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3>📷 AR GitHub Engine</h3>
-            <span style="font-size:11px; color:#4c9aff; font-weight: bold;">v6.0</span>
+            <h3>📷 AR Target QR Engine</h3>
+            <span style="font-size:11px; color:#4c9aff; font-weight: bold;">v7.0</span>
         </div>
         
-        <div class="input-group">
-            <input type="text" id="githubUrlInput" placeholder="URL de GitHub (ej: .../modelo.glb)">
-        </div>
-        
-        <button id="generateQRBtn" class="success-btn">🔲 Vincular y Generar QR</button>
+        <input type="text" id="githubUrlInput" placeholder="URL de GitHub de tu .glb">
+        <button id="generateQRBtn" style="background: #2e8b57;">🔲 Generar QR y Activar Sistema</button>
         
         <div class="qr-container" id="qrContainer" style="display: none;">
             <div id="qrcode"></div>
-            <button id="downloadQRBtn">📥 Descargar QR</button>
+            <button id="downloadQRBtn" style="background: #333; margin-top:5px;">📥 Descargar QR</button>
         </div>
         
-        <div class="status" id="statusMsg">⚡ Listo para recibir modelos públicos de GitHub.</div>
-
-        <div class="btn-group">
-            <button id="startARBtn">🌟 Activar Cámara</button>
-            <button id="resetCameraBtn" class="danger-btn">🔄 Entorno</button>
-        </div>
+        <div class="status" id="statusMsg">⚡ Listo. Pega el enlace de GitHub para vincular tu geometría espacial.</div>
     </div>
 
     <div class="transform-panel" id="transformPanel">
-        <h4 style="margin: 0 0 5px 0; color: #4c9aff;">🕹️ Herramientas del Modelo</h4>
-        <p style="margin: 0 0 10px 0; font-size: 11px; color: #aaa;">Ajusta cómo se verá respecto al origen (QR)</p>
+        <h4 style="margin: 0 0 5px 0; color: #4c9aff;">🕹️ Offset respecto al QR</h4>
+        <p style="margin: 0 0 10px 0; font-size: 11px; color: #aaa;">Ajusta dónde flotará el modelo sobre el código</p>
         
         <div class="slider-row">
             <span>Altura (Y)</span>
-            <input type="range" id="posY" min="-2" max="3" step="0.05" value="0">
+            <input type="range" id="posY" min="-1" max="4" step="0.05" value="0">
             <label id="valPosY">0.0</label>
         </div>
-        
         <div class="slider-row">
-            <span>Mover X</span>
+            <span>Desplazar X</span>
             <input type="range" id="posX" min="-2" max="2" step="0.05" value="0">
             <label id="valPosX">0.0</label>
         </div>
-
         <div class="slider-row">
-            <span>Mover Z</span>
+            <span>Desplazar Z</span>
             <input type="range" id="posZ" min="-2" max="2" step="0.05" value="0">
             <label id="valPosZ">0.0</label>
         </div>
-
         <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:5px 0;">
-
         <div class="slider-row">
             <span>Girar (Y)</span>
             <input type="range" id="rotY" min="0" max="360" step="1" value="0">
             <label id="valRotY">0°</label>
         </div>
-
         <div class="slider-row">
             <span>Tamaño</span>
-            <input type="range" id="scaleAll" min="0.1" max="3" step="0.05" value="1">
-            <label id="valScale">1.0</label>
+            <input type="range" id="scaleAll" min="0.05" max="3" step="0.05" value="0.5">
+            <label id="valScale">0.5</label>
         </div>
-        
-        <button id="resetTransformBtn" style="background:#333; padding:6px; font-size:11px; margin-top:5px;">🔄 Centrar Valores</button>
     </div>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
         
-        // Elementos DOM
+        <a-assets id="assetsContainer"></a-assets>
+
+        <a-marker type="barcode" value="5" id="qrTargetMarker">
+            <a-entity id="modelWrapper" position="0 0 0" rotation="0 0 0" scale="0.5 0.5 0.5">
+                <a-entity id="gltfModelMesh"></a-entity>
+            </a-entity>
+        </a-marker>
+
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
         const githubUrlInput = document.getElementById('githubUrlInput');
         const generateQRBtn = document.getElementById('generateQRBtn');
         const qrContainerDiv = document.getElementById('qrContainer');
         const qrcodeDiv = document.getElementById('qrcode');
         const downloadQRBtn = document.getElementById('downloadQRBtn');
         const statusMsg = document.getElementById('statusMsg');
-        const startARBtn = document.getElementById('startARBtn');
-        const resetCameraBtn = document.getElementById('resetCameraBtn');
         
-        // Sliders Dom
+        const controlsPanel = document.getElementById('controlsPanel');
+        const transformPanel = document.getElementById('transformPanel');
+        const phoneOverlay = document.getElementById('phoneOverlay');
+
+        const modelWrapper = document.getElementById('modelWrapper');
+        const gltfModelMesh = document.getElementById('gltfModelMesh');
+        const assetsContainer = document.getElementById('assetsContainer');
+
+        // Sliders
         const sliderPosX = document.getElementById('posX');
         const sliderPosY = document.getElementById('posY');
         const sliderPosZ = document.getElementById('posZ');
         const sliderRotY = document.getElementById('rotY');
         const sliderScale = document.getElementById('scaleAll');
-        const resetTransformBtn = document.getElementById('resetTransformBtn');
 
-        let scene, camera, renderer, controls, arSessionActive = false;
-        let currentModel = null, modelContainer = null, qrAnchorMesh = null;
+        // Sincronizar Sliders de Ajuste Fino en Vivo
+        function initSliders() {
+            const updateTransform = () => {
+                const x = sliderPosX.value;
+                const y = sliderPosY.value;
+                const z = sliderPosZ.value;
+                const rY = sliderRotY.value;
+                const s = sliderScale.value;
 
-        function initThree() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0b0b1a);
-            
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 2, 4);
-            
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            document.body.appendChild(renderer.domElement);
-            
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.target.set(0, 0.5, 0);
-            
-            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-            dirLight.position.set(5, 10, 7);
-            scene.add(dirLight);
+                modelWrapper.setAttribute('position', `${x} ${y} ${z}`);
+                modelWrapper.setAttribute('rotation', `0 ${rY} 0`);
+                modelWrapper.setAttribute('scale', `${s} ${s} ${s}`);
 
-            // Contenedor principal que hereda las transformaciones manuales
-            modelContainer = new THREE.Group();
-            scene.add(modelContainer);
+                document.getElementById('valPosX').innerText = x;
+                document.getElementById('valPosY').innerText = y;
+                document.getElementById('valPosZ').innerText = z;
+                document.getElementById('valRotY').innerText = rY + "°";
+                document.getElementById('valScale').innerText = s;
+            };
 
-            // Crear Ancla del QR ficticia en el suelo (Punto Cero del Espacio Real)
-            const qrGeo = new THREE.PlaneGeometry(0.6, 0.6);
-            const qrMat = new THREE.MeshBasicMaterial({ 
-                color: 0xffffff, 
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0.9
+            [sliderPosX, sliderPosY, sliderPosZ, sliderRotY, sliderScale].forEach(sl => {
+                sl.addEventListener('input', updateTransform);
             });
-            qrAnchorMesh = new THREE.Mesh(qrGeo, qrMat);
-            qrAnchorMesh.rotation.x = -Math.PI / 2;
-            qrAnchorMesh.position.y = -0.01; // Justo en el suelo
-            scene.add(qrAnchorMesh);
-
-            // Cuadrícula base
-            const gridHelper = new THREE.GridHelper(20, 40, 0x4c9aff, 0x1d2436);
-            scene.add(gridHelper);
-            
-            window.addEventListener('resize', onWindowResize);
-            setupSliders();
-            animate();
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
         }
 
         function convertToRawGitHubUrl(url) {
@@ -299,183 +273,94 @@
             return processedUrl;
         }
 
-        // Lógica de manipulación de sliders vinculados al contenedor del modelo
-        function setupSliders() {
-            const updateTransform = () => {
-                if (!modelContainer) return;
-                
-                // Aplicar posición
-                modelContainer.position.x = parseFloat(sliderPosX.value);
-                modelContainer.position.y = parseFloat(sliderPosY.value);
-                modelContainer.position.z = parseFloat(sliderPosZ.value);
-                
-                // Aplicar rotación (convertida a radianes)
-                modelContainer.rotation.y = THREE.MathUtils.degToRad(parseFloat(sliderRotY.value));
-                
-                // Aplicar escala
-                const s = parseFloat(sliderScale.value);
-                modelContainer.scale.set(s, s, s);
+        // Cargar geometría de forma asíncrona dentro del ecosistema AR.js
+        function injectModel(url) {
+            // Limpiar ejecuciones previas
+            assetsContainer.innerHTML = "";
+            gltfModelMesh.removeAttribute('gltf-model');
 
-                // Imprimir feedback visual en las etiquetas
-                document.getElementById('valPosX').innerText = sliderPosX.value;
-                document.getElementById('valPosY').innerText = sliderPosY.value;
-                document.getElementById('valPosZ').innerText = sliderPosZ.value;
-                document.getElementById('valRotY').innerText = sliderRotY.value + "°";
-                document.getElementById('valScale').innerText = sliderScale.value;
-            };
+            statusMsg.innerText = "🔄 Sincronizando y descargando geometría 3D...";
 
-            sliderPosX.addEventListener('input', updateTransform);
-            sliderPosY.addEventListener('input', updateTransform);
-            sliderPosZ.addEventListener('input', updateTransform);
-            sliderRotY.addEventListener('input', updateTransform);
-            sliderScale.addEventListener('input', updateTransform);
+            const assetItem = document.createElement('a-asset-item');
+            assetItem.setAttribute('id', 'active-gltf');
+            assetItem.setAttribute('src', url);
+            assetsContainer.appendChild(assetItem);
 
-            resetTransformBtn.addEventListener('click', () => {
-                sliderPosX.value = 0; sliderPosY.value = 0; sliderPosZ.value = 0;
-                sliderRotY.value = 0; sliderScale.value = 1;
-                updateTransform();
+            gltfModelMesh.setAttribute('gltf-model', '#active-gltf');
+
+            gltfModelMesh.addEventListener('model-loaded', () => {
+                statusMsg.innerText = "✅ ¡Modelo 3D listo sobre el objetivo QR!";
             });
         }
 
-        function loadModelFromUrl(url) {
-            return new Promise((resolve, reject) => {
-                let loaderPromise;
-                statusMsg.innerText = `🔄 Obteniendo geometría desde GitHub...`;
-
-                const isObj = url.toLowerCase().includes(".obj");
-
-                if (isObj) {
-                    const loader = new OBJLoader();
-                    loaderPromise = loader.loadAsync(url);
-                } else {
-                    const loader = new GLTFLoader();
-                    loader.setCrossOrigin('anonymous');
-                    loaderPromise = loader.loadAsync(url).then(gltf => gltf.scene);
-                }
-
-                loaderPromise.then(model => {
-                    // Limpiar modelo anterior dentro del contenedor
-                    while(modelContainer.children.length > 0){ 
-                        modelContainer.remove(modelContainer.children[0]); 
-                    }
-                    
-                    currentModel = model;
-                    
-                    // Auto-centrado de geometría inicial
-                    const box = new THREE.Box3().setFromObject(currentModel);
-                    const center = box.getCenter(new THREE.Vector3());
-                    
-                    // Ajustamos el pivote para que la base del objeto toque el suelo por defecto
-                    currentModel.position.set(-center.x, -box.min.y, -center.z);
-                    
-                    modelContainer.add(currentModel);
-                    resolve();
-                }).catch(reject);
-            });
-        }
-
+        // Lógica de Generación de QR del Maestro
         generateQRBtn.addEventListener('click', () => {
             const rawUrl = githubUrlInput.value.trim();
             if (!rawUrl) {
-                statusMsg.innerText = "❌ URL de GitHub requerida.";
+                statusMsg.innerText = "❌ Pega una URL válida de GitHub.";
                 return;
             }
 
             const rawBlobUrl = convertToRawGitHubUrl(rawUrl);
             const baseUrl = window.location.href.split('#')[0];
             
-            // Pasamos la URL del modelo codificada en el hash del teléfono remoto
-            const appShareUrl = `${baseUrl}#modelUrl=${encodeURIComponent(rawBlobUrl)}`;
+            // Pasamos los parámetros de posición guardados en los sliders mediante el QR
+            const appShareUrl = `${baseUrl}#modelUrl=${encodeURIComponent(rawBlobUrl)}&x=${sliderPosX.value}&y=${sliderPosY.value}&z=${sliderPosZ.value}&r=${sliderRotY.value}&s=${sliderScale.value}`;
             
             qrcodeDiv.innerHTML = "";
             new QRCode(qrcodeDiv, {
                 text: appShareUrl,
-                width: 130,
-                height: 130,
+                width: 140,
+                height: 140,
                 correctLevel: QRCode.CorrectLevel.M
             });
             
             qrContainerDiv.style.display = "flex";
-            statusMsg.innerText = "✅ ¡QR Proporcional Generado!";
-
-            // Actualizar la textura del ancla del suelo 3D con el QR generado para referencia visual espacial
-            setTimeout(() => {
-                const qrCanvas = qrcodeDiv.querySelector('canvas');
-                if (qrCanvas) {
-                    const texture = new THREE.CanvasTexture(qrCanvas);
-                    qrAnchorMesh.material.map = texture;
-                    qrAnchorMesh.material.needsUpdate = true;
-                }
-            }, 300);
-            
-            loadModelFromUrl(rawBlobUrl)
-                .then(() => statusMsg.innerText = "✅ Modelo sincronizado. Usa las herramientas para acomodarlo respecto al QR.")
-                .catch(err => statusMsg.innerText = `❌ Error de renderizado. Verifica el repositorio.`);
+            injectModel(rawBlobUrl);
         });
+
+        // Detectar si la página se está ejecutando desde el Teléfono (Tiene parámetros en la URL)
+        function checkClientDevice() {
+            const hash = window.location.hash.substring(1);
+            if (!hash) return; // Es la computadora maestro, se queda como interfaz de desarrollo
+
+            const params = new URLSearchParams(hash);
+            const modelUrl = params.get('modelUrl');
+
+            if (modelUrl) {
+                // Ocultar paneles de configuración para dejar limpia la pantalla de la cámara
+                controlsPanel.style.display = "none";
+                transformPanel.style.display = "none";
+                phoneOverlay.style.display = "block"; // Activar guía telefónica
+
+                // Capturar e inyectar transformaciones preestablecidas por el QR
+                const x = params.get('x') || 0;
+                const y = params.get('y') || 0;
+                const z = params.get('z') || 0;
+                const r = params.get('r') || 0;
+                const s = params.get('s') || 0.5;
+
+                modelWrapper.setAttribute('position', `${x} ${y} ${z}`);
+                modelWrapper.setAttribute('rotation', `0 ${r} 0`);
+                modelWrapper.setAttribute('scale', `${s} ${s} ${s}`);
+
+                injectModel(decodeURIComponent(modelUrl));
+            }
+        }
 
         downloadQRBtn.addEventListener('click', () => {
             const canvas = qrcodeDiv.querySelector('canvas');
             if (canvas) {
                 const link = document.createElement('a');
-                link.download = `ar-spatial-qr.png`;
+                link.download = `ar-target-qr.png`;
                 link.href = canvas.toDataURL();
                 link.click();
             }
         });
 
-        async function startARMode() {
-            if (!currentModel) return;
-            if (arSessionActive) return;
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                const video = document.createElement('video');
-                video.autoplay = true; video.playsInline = true; video.srcObject = stream; video.id = "webcam-ar-feed";
-                video.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; object-fit:cover; z-index:-2;";
-                document.body.appendChild(video);
-                
-                renderer.setClearColor(0x000000, 0);
-                scene.background = null;
-                qrAnchorMesh.visible = false; // Ocultamos el plano QR virtual ya que usarás el papel real
-                
-                arSessionActive = true;
-                window.__cameraStream = stream;
-                statusMsg.innerText = "🌟 Vista AR activada. Los sliders modifican la posición relativa al tracking.";
-            } catch (err) {
-                statusMsg.innerText = `❌ Error de cámara: ${err.message}`;
-            }
-        }
-
-        function resetAR() {
-            const video = document.getElementById('webcam-ar-feed');
-            if (video) video.remove();
-            if (window.__cameraStream) {
-                window.__cameraStream.getTracks().forEach(track => track.stop());
-                window.__cameraStream = null;
-            }
-            renderer.setClearColor(0x0b0b1a, 1);
-            scene.background = new THREE.Color(0x0b0b1a);
-            qrAnchorMesh.visible = true;
-            arSessionActive = false;
-        }
-
-        startARBtn.addEventListener('click', startARMode);
-        resetCameraBtn.addEventListener('click', resetAR);
-
-        function checkUrlParamsOnLoad() {
-            const hash = window.location.hash.substring(1);
-            if (!hash) return;
-            const params = new URLSearchParams(hash);
-            const modelUrl = params.get('modelUrl');
-            if (modelUrl) {
-                loadModelFromUrl(decodeURIComponent(modelUrl))
-                    .then(() => statusMsg.innerText = `📲 Sincronizado remotamente por QR.`)
-                    .catch(console.error);
-            }
-        }
-
-        initThree();
-        checkUrlParamsOnLoad();
+        // Inicialización de hilos
+        initSliders();
+        checkClientDevice();
     </script>
 </body>
 </html>
