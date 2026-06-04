@@ -20,14 +20,13 @@
         }
         body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-height:100vh; color:var(--text); }
 
-        /* REGLAS CRÍTICAS PARA EVITAR LA PANTALLA NEGRA DE AR.JS */
+        /* REGLAS CRÍTICAS PARA EVITAR PANTALLA NEGRA EN MÓVILES */
         body.a-body {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
             overflow: hidden !important;
         }
-        /* Fuerza al video oculto de AR.js a tomar control de todo el fondo */
         video {
             position: fixed !important;
             top: 0 !important;
@@ -85,7 +84,7 @@
         #notification { position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--text); color:white; padding:11px 20px; border-radius:30px; font-size:14px; font-weight:500; z-index:99999; transition:transform .35s; white-space:nowrap; pointer-events:none; }
         #notification.show { transform:translateX(-50%) translateY(0); }
 
-        /* CAPA DE INTERFAZ DE AR (Por encima de la cámara) */
+        /* INTERFAZ FLOTANTE SOBRE LA CÁMARA */
         #arUiOverlay { display:none; position:fixed; inset:0; z-index:9999; pointer-events: none; flex-direction:column; justify-content:space-between; }
         #arUiOverlay.active { display:flex; }
         .ar-header { background:rgba(0,0,0,.6); backdrop-filter:blur(4px); padding:12px 16px; display:flex; justify-content:space-between; align-items:center; pointer-events: auto; }
@@ -106,7 +105,7 @@
 <div id="managerMode">
     <div class="header">
         <h1>🎨 AR Model Manager</h1>
-        <p>Genera QR enmarcados que sirven directamente como trackers estables de AR</p>
+        <p>Genera QR híbridos que sirven como trackers de Realidad Aumentada</p>
     </div>
 
     <div class="tabs">
@@ -120,7 +119,7 @@
             <div class="input-group">
                 <label>🔗 URL del modelo 3D (.glb / .gltf)</label>
                 <input type="text" id="modelUrl" placeholder="https://ejemplo.com/modelo.glb" oninput="onUrlInput()">
-                <small>⚠️ Habilita CORS en el servidor donde alojes tus archivos .glb</small>
+                <small>💡 Para verificar tu código, puedes probar usando este modelo de ejemplo:<br><b>https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb</b></small>
             </div>
             <div class="input-group">
                 <label>🏷️ Nombre del modelo</label>
@@ -141,13 +140,13 @@
                 <h2>⚙️ Calibrar Posición Inicial en AR</h2>
                 <div class="slider-row">
                     <label>Escala</label>
-                    <input type="range" id="scaleSlider" min="0.05" max="2" step="0.01" value="0.4" oninput="updateLivePreviewTransform()">
-                    <span id="scaleVal">0.40</span>
+                    <input type="range" id="scaleSlider" min="0.01" max="1" step="0.01" value="0.2" oninput="updateLivePreviewTransform()">
+                    <span id="scaleVal">0.20</span>
                 </div>
                 <div class="slider-row">
                     <label>Pos Y</label>
-                    <input type="range" id="posYSlider" min="-1" max="2" step="0.05" value="0" oninput="updateLivePreviewTransform()">
-                    <span id="posYVal">0.00</span>
+                    <input type="range" id="posYSlider" min="-0.5" max="1.5" step="0.05" value="0.2" oninput="updateLivePreviewTransform()">
+                    <span id="posYVal">0.20</span>
                 </div>
                 <div class="slider-row">
                     <label>Rot Y</label>
@@ -171,10 +170,9 @@
                     </div>
                 </div>
                 <div class="info-box">
-                    <strong>📌 INSTRUCCIONES DE USO:</strong><br>
-                    1. Escanea el QR central para abrir este visor en tu teléfono móvil.<br>
-                    2. Dale permisos a la cámara si te los solicita.<br>
-                    3. Encuadra la imagen **completa** (incluyendo el borde negro exterior). El objeto cargará justo encima del QR.
+                    <strong>📌 IMPORTANTE PARA EL RASTREO:</strong><br>
+                    1. Abre el enlace del QR en tu móvil.<br>
+                    2. Si estás mostrando el QR en una computadora, <b>asegúrate de que la pantalla NO esté en modo oscuro</b>. AR.js necesita distinguir el contraste del marco negro sobre un fondo blanco para poder proyectar el objeto 3D.
                 </div>
                 <div class="btn-row">
                     <button class="btn btn-secondary" onclick="downloadQR()">💾 Descargar código</button>
@@ -199,8 +197,9 @@
         <h3 id="arTitle">Iniciando Visor...</h3>
         <div style="width:40px;"></div>
     </div>
-    <div class="ar-status" id="arStatusText">📸 Permitiendo acceso a la cámara...</div>
-    <div></div> </div>
+    <div class="ar-status" id="arStatusText">📸 Esperando acceso a la cámara...</div>
+    <div></div>
+</div>
 
 <div id="notification"></div>
 
@@ -336,7 +335,7 @@ function copyARLink() { navigator.clipboard.writeText(currentQRUrl).then(() => s
 function exitAR() { window.location.href = window.location.pathname; }
 
 // ═══════════════════════════════════════════════════════════════
-//  INICIALIZADOR DE CÁMARA REALIDAD AUMENTADA CON CONTROL DE ERRORES
+//  INICIALIZACIÓN DEL MOTOR AR CON RENDERIZADO AJUSTADO
 // ═══════════════════════════════════════════════════════════════
 function initARMode() {
     const params = new URLSearchParams(window.location.search);
@@ -344,29 +343,25 @@ function initARMode() {
     
     const modelSrc = decodeURIComponent(params.get('model') || '');
     const modelDisplayName = decodeURIComponent(params.get('name') || 'Visor AR');
-    const scale = params.get('s') || "0.4";
-    const posY = params.get('y') || "0";
+    const scale = params.get('s') || "0.2"; 
+    const posY = params.get('y') || "0.2";
     const rotY = params.get('r') || "0";
 
     if (!modelSrc) return;
     
-    // Eliminamos el panel de control del DOM para que no cause problemas con capas CSS transparentes
     document.getElementById('managerMode').remove();
-    
-    // Activamos la capa flotante de UI
     document.getElementById('arUiOverlay').classList.add('active');
     document.getElementById('arTitle').textContent = modelDisplayName;
     
-    // Creamos la escena de A-Frame de forma dinámica adjuntándola directamente al body
     const sceneEl = document.createElement('a-scene');
     sceneEl.setAttribute('embedded', '');
-    sceneEl.setAttribute('arjs', 'sourceType: webcam; videoTexture: true; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
+    sceneEl.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono; patternRatio: 0.50;');
     sceneEl.setAttribute('vr-mode-ui', 'enabled: false');
-    sceneEl.setAttribute('renderer', 'logarithmicDepthBuffer: true; colorManagement: true; antialias: true;');
+    sceneEl.setAttribute('renderer', 'logarithmicDepthBuffer: true; colorManagement: true; antialias: true; precision: high;');
 
     sceneEl.innerHTML = `
         <a-assets>
-            <a-asset-item id="arModel" src="${modelSrc}"></a-asset-item>
+            <a-asset-item id="arModel" src="${modelSrc}" response-type="arraybuffer" crossorigin="anonymous" timeout="15000"></a-asset-item>
         </a-assets>
 
         <a-marker preset="hiro" id="qrMarker" emitevents="true">
@@ -378,12 +373,24 @@ function initARMode() {
             </a-entity>
         </a-marker>
         
+        <a-entity light="type: ambient; intensity: 1.6;"></a-entity>
+        <a-entity light="type: directional; intensity: 1.2; position: 1 4 2;"></a-entity>
+        
         <a-entity camera></a-entity>
     `;
     
     document.body.appendChild(sceneEl);
     
-    // Escuchamos los eventos de AR.js para actualizar los textos de guía en la pantalla móvil
+    const modelEntity = sceneEl.querySelector('#arModelEntity');
+    modelEntity.addEventListener('model-loaded', () => {
+        console.log("Modelo 3D inyectado perfectamente.");
+    });
+    modelEntity.addEventListener('model-error', (e) => {
+        console.error("Error cargando el .glb:", e);
+        document.getElementById('arStatusText').innerHTML = '❌ Error: El servidor del modelo bloqueó la carga';
+        document.getElementById('arStatusText').style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
+    });
+
     sceneEl.addEventListener('renderstart', () => {
         document.getElementById('arStatusText').innerHTML = '🔍 Apunta al marcador (Borde Negro + QR)...';
     });
