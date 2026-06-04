@@ -59,6 +59,9 @@
         #notification.show { transform:translateX(-50%) translateY(0); }
         #notification.success { background:var(--success); }
         #notification.error { background:var(--error); }
+        .loading-overlay { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10; border-radius:14px; }
+        .loading-spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.3); border-top-color:var(--purple); border-radius:50%; animation:spin 0.8s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
 
         /* AR MODE - Cámara fullscreen con tracking por QR */
         #arMode { display:none; position:fixed; inset:0; z-index:10000; background:#000; flex-direction:column; }
@@ -70,17 +73,6 @@
         .ar-btn { padding:10px 18px; border:none; border-radius:12px; font-size:13px; font-weight:600; cursor:pointer; background:#7c3aed; color:white; }
         .ar-btn-secondary { background:rgba(255,255,255,.15); color:white; }
         .ar-status { position:absolute; top:60px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.7); padding:6px 14px; border-radius:20px; color:white; font-size:12px; z-index:20; white-space:nowrap; }
-        .edit-panel { position:absolute; bottom:0; left:0; right:0; background:rgba(15,5,30,.98); backdrop-filter:blur(20px); border-radius:20px 20px 0 0; padding:16px; z-index:30; transform:translateY(100%); transition:transform .3s ease; max-height:60vh; overflow-y:auto; }
-        .edit-panel.open { transform:translateY(0); }
-        .edit-panel h4 { color:white; font-size:14px; margin-bottom:12px; }
-        .slider-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
-        .slider-row label { color:rgba(255,255,255,.7); font-size:12px; width:30px; }
-        .slider-row input { flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,.2); -webkit-appearance:none; }
-        .slider-row input:focus { outline:none; }
-        .slider-row input::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#7c3aed; cursor:pointer; }
-        .slider-row span { color:white; font-size:12px; width:40px; text-align:right; }
-        .panel-close { background:rgba(255,255,255,.1); border:none; color:white; padding:4px 12px; border-radius:8px; cursor:pointer; font-size:12px; float:right; }
-        .save-transform { background:#7c3aed; border:none; color:white; padding:8px; border-radius:10px; cursor:pointer; font-weight:600; width:100%; margin-top:10px; }
         .scene-container { width:100%; height:100%; position:relative; overflow:hidden; }
         a-scene { width:100% !important; height:100% !important; position:absolute !important; top:0; left:0; }
     </style>
@@ -112,7 +104,7 @@
                 <input type="text" id="modelName" placeholder="Mi Modelo 3D">
             </div>
 
-            <div class="preview-wrap">
+            <div class="preview-wrap" id="previewWrap">
                 <div class="preview-placeholder" id="previewPlaceholder">
                     <span>📦</span>Ingresa una URL válida para previsualizar
                 </div>
@@ -158,45 +150,25 @@
     </div>
 </div>
 
-<!-- MODO AR - TRACKING POR QR -->
+<!-- MODO AR - TRACKING POR QR (SOLO VISUALIZACIÓN, SIN EDICIÓN) -->
 <div id="arMode">
     <div class="ar-header">
         <button class="ar-back-btn" onclick="exitAR()">← Salir</button>
         <h3 id="arTitle">Realidad Aumentada</h3>
-        <button class="ar-back-btn" onclick="toggleEditPanel()">⚙️ Editar</button>
+        <div style="width:70px;"></div>
     </div>
-    <div class="ar-status" id="arStatusText">🔍 Buscando marcador QR...</div>
+    <div class="ar-status" id="arStatusText">🔍 Iniciando cámara...</div>
     
-    <div class="scene-container" id="sceneContainer"></div>
+    <div class="scene-container" id="sceneContainer">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;text-align:center;z-index:15;">
+            <div style="width:50px;height:50px;border:3px solid rgba(255,255,255,0.3);border-top-color:var(--purple);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 15px;"></div>
+            <p>Cargando realidad aumentada...</p>
+            <p style="font-size:12px;margin-top:8px;">⚠️ Asegúrate de dar permisos de cámara</p>
+        </div>
+    </div>
     
     <div class="ar-controls">
         <button class="ar-btn" onclick="resetCamera()">🔄 Resetear vista</button>
-        <button class="ar-btn ar-btn-secondary" onclick="toggleEditPanel()">✏️ Transformar</button>
-    </div>
-    
-    <div class="edit-panel" id="editPanel">
-        <button class="panel-close" onclick="toggleEditPanel()">✕</button>
-        <h4>⚙️ Editar Modelo</h4>
-        
-        <div class="slider-row">
-            <label>Escala</label>
-            <input type="range" id="scaleSlider" min="0.1" max="3" step="0.01" value="0.8" oninput="updateModelTransform()">
-            <span id="scaleVal">0.80</span>
-        </div>
-        
-        <div class="slider-row">
-            <label>Pos Y</label>
-            <input type="range" id="posYSlider" min="-1" max="2" step="0.05" value="0" oninput="updateModelTransform()">
-            <span id="posYVal">0.00</span>
-        </div>
-        
-        <div class="slider-row">
-            <label>Rot Y</label>
-            <input type="range" id="rotYSlider" min="-180" max="180" step="5" value="0" oninput="updateModelTransform()">
-            <span id="rotYVal">0°</span>
-        </div>
-        
-        <button class="save-transform" onclick="saveModelTransform()">💾 Guardar transformación</button>
     </div>
 </div>
 
@@ -266,6 +238,8 @@ function loadModelFromList(i) {
 }
 
 let previewTimer = null;
+let currentLoadController = null;
+
 function onUrlInput() {
     clearTimeout(previewTimer);
     previewTimer = setTimeout(() => {
@@ -278,18 +252,54 @@ function loadPreview() {
     const raw = convertToRawUrl(document.getElementById('modelUrl').value.trim());
     const viewer = document.getElementById('inlineViewer');
     const ph = document.getElementById('previewPlaceholder');
+    const previewWrap = document.getElementById('previewWrap');
+    
     if (!raw) { showNotification('Ingresa una URL primero', 'error'); return; }
     if (!isModelUrl(raw)) { showNotification('La URL debe ser .glb o .gltf', 'error'); return; }
+    
+    // Mostrar loading
+    const existingLoading = previewWrap.querySelector('.loading-overlay');
+    if (existingLoading) existingLoading.remove();
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'loading-overlay';
+    loadingDiv.innerHTML = '<div class="loading-spinner"></div>';
+    previewWrap.style.position = 'relative';
+    previewWrap.appendChild(loadingDiv);
+    
     ph.style.display = 'none';
     viewer.style.display = 'block';
     viewer.src = raw;
-    viewer.addEventListener('load', () => showNotification('✅ Modelo cargado', 'success'), { once: true });
-    viewer.addEventListener('error', () => {
+    
+    const handleLoad = () => {
+        loadingDiv.remove();
+        showNotification('✅ Modelo cargado correctamente', 'success');
+        viewer.removeEventListener('load', handleLoad);
+        viewer.removeEventListener('error', handleError);
+    };
+    
+    const handleError = () => {
+        loadingDiv.remove();
         viewer.style.display = 'none';
         ph.style.display = 'flex';
         ph.innerHTML = '<span>❌</span>No se pudo cargar. Verifica la URL y CORS.';
         showNotification('Error al cargar. Verifica URL y CORS.', 'error');
-    }, { once: true });
+        viewer.removeEventListener('load', handleLoad);
+        viewer.removeEventListener('error', handleError);
+    };
+    
+    viewer.addEventListener('load', handleLoad, { once: true });
+    viewer.addEventListener('error', handleError, { once: true });
+    
+    // Timeout por si no responde
+    setTimeout(() => {
+        if (loadingDiv.parentNode) {
+            loadingDiv.remove();
+            viewer.style.display = 'none';
+            ph.style.display = 'flex';
+            ph.innerHTML = '<span>⏰</span>Tiempo de espera agotado. Verifica la URL.';
+        }
+    }, 15000);
 }
 
 function switchTab(tab) {
@@ -306,7 +316,6 @@ function generateARCode() {
     if (!rawUrl) { showNotification('Ingresa la URL del modelo', 'error'); return; }
     if (!isModelUrl(rawUrl)) { showNotification('La URL debe terminar en .glb o .gltf', 'error'); return; }
 
-    // La URL del visor AR incluye el modelo y el nombre
     currentQRUrl = `${location.origin}${location.pathname}?mode=ar&model=${encodeURIComponent(rawUrl)}&name=${encodeURIComponent(modelName || 'Modelo 3D')}`;
 
     const qrDiv = document.getElementById('qrcode');
@@ -338,81 +347,35 @@ function copyARLink() { navigator.clipboard.writeText(currentQRUrl).then(() => s
 
 // ═══════════════════════════════════════════════════════════════
 //  MODO AR - TRACKING POR QR CON AR.JS + A-FRAME
-//  El QR escaneado es el mismo marcador que usa AR.js
+//  SOLO VISUALIZACIÓN - SIN CONTROLES DE EDICIÓN
 // ═══════════════════════════════════════════════════════════════
 let currentModelSrc = '';
 let currentModelDisplayName = '';
 let arSceneActive = false;
-let currentEntity = null;
+let scriptsLoaded = false;
 
 function exitAR() {
     if (arSceneActive) {
         const container = document.getElementById('sceneContainer');
-        if (container) container.innerHTML = '';
+        if (container) container.innerHTML = '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;text-align:center;"><div style="width:50px;height:50px;border:3px solid rgba(255,255,255,0.3);border-top-color:var(--purple);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 15px;"></div><p>Cerrando...</p></div>';
         arSceneActive = false;
     }
     document.getElementById('arMode').classList.remove('active');
     document.getElementById('managerMode').style.display = 'block';
-    // Detener cualquier stream de cámara
+    
     if (window._arVideoStream) {
         window._arVideoStream.getTracks().forEach(t => t.stop());
         window._arVideoStream = null;
     }
 }
 
-function toggleEditPanel() {
-    document.getElementById('editPanel').classList.toggle('open');
-}
-
-function updateModelTransform() {
-    if (!currentEntity) return;
-    const scale = parseFloat(document.getElementById('scaleSlider').value);
-    const posY = parseFloat(document.getElementById('posYSlider').value);
-    const rotY = parseFloat(document.getElementById('rotYSlider').value);
-    
-    document.getElementById('scaleVal').textContent = scale.toFixed(2);
-    document.getElementById('posYVal').textContent = posY.toFixed(2);
-    document.getElementById('rotYVal').textContent = rotY + '°';
-    
-    currentEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
-    currentEntity.setAttribute('position', `0 ${posY} 0`);
-    currentEntity.setAttribute('rotation', `0 ${rotY} 0`);
-}
-
-function saveModelTransform() {
-    if (!currentModelSrc) return;
-    const transform = {
-        scale: parseFloat(document.getElementById('scaleSlider').value),
-        posY: parseFloat(document.getElementById('posYSlider').value),
-        rotY: parseFloat(document.getElementById('rotYSlider').value)
-    };
-    const saved = JSON.parse(localStorage.getItem('ar_model_transforms') || '{}');
-    saved[currentModelSrc] = transform;
-    localStorage.setItem('ar_model_transforms', JSON.stringify(saved));
-    showNotification('Transformación guardada para este modelo', 'success');
-}
-
-function loadModelTransform() {
-    if (!currentModelSrc) return { scale: 0.8, posY: 0, rotY: 0 };
-    const saved = JSON.parse(localStorage.getItem('ar_model_transforms') || '{}');
-    const t = saved[currentModelSrc];
-    if (t) {
-        document.getElementById('scaleSlider').value = t.scale;
-        document.getElementById('posYSlider').value = t.posY;
-        document.getElementById('rotYSlider').value = t.rotY;
-        updateModelTransform();
-        return t;
-    }
-    return { scale: 0.8, posY: 0, rotY: 0 };
-}
-
 function resetCamera() {
     const scene = document.querySelector('a-scene');
-    if (scene && scene.camera) {
-        const camera = scene.camera;
-        if (camera.el) camera.el.setAttribute('position', '0 1.6 0');
+    if (scene && scene.camera && scene.camera.el) {
+        scene.camera.el.setAttribute('position', '0 1.6 0');
+        scene.camera.el.setAttribute('rotation', '0 0 0');
+        showNotification('Vista restablecida', 'success');
     }
-    showNotification('Vista restablecida', 'success');
 }
 
 // Función principal que inicia AR con tracking del QR
@@ -430,18 +393,56 @@ function initARMode() {
     document.getElementById('arTitle').textContent = currentModelDisplayName;
     document.getElementById('arStatusText').textContent = '🎯 Iniciando cámara - Apunta al QR impreso';
     
-    // Cargar transformación guardada
-    const transform = loadModelTransform();
+    // Cargar scripts y luego la escena
+    loadARScriptsAndStart();
+}
+
+function loadARScriptsAndStart() {
+    if (scriptsLoaded) {
+        startARScene();
+        return;
+    }
     
-    // Limpiar contenedor anterior
+    let scriptsToLoad = 2;
+    let loadedCount = 0;
+    
+    function onScriptLoad() {
+        loadedCount++;
+        if (loadedCount === scriptsToLoad) {
+            scriptsLoaded = true;
+            startARScene();
+        }
+    }
+    
+    function onScriptError() {
+        document.getElementById('arStatusText').innerHTML = '❌ Error al cargar AR.js. Verifica conexión.';
+        showNotification('Error al cargar los scripts de AR', 'error');
+    }
+    
+    // Cargar A-Frame
+    const aframeScript = document.createElement('script');
+    aframeScript.src = 'https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js';
+    aframeScript.onload = onScriptLoad;
+    aframeScript.onerror = onScriptError;
+    document.head.appendChild(aframeScript);
+    
+    // Cargar AR.js
+    const arjsScript = document.createElement('script');
+    arjsScript.src = 'https://cdn.jsdelivr.net/npm/ar.js@2.2.2/aframe/build/aframe-ar.min.js';
+    arjsScript.onload = onScriptLoad;
+    arjsScript.onerror = onScriptError;
+    document.head.appendChild(arjsScript);
+}
+
+function startARScene() {
     const container = document.getElementById('sceneContainer');
+    if (!container) return;
+    
+    // Limpiar contenedor y remover mensaje de carga
     container.innerHTML = '';
     
-    // Crear escena A-Frame con AR.js - usa el QR como marcador
-    // AR.js detecta automáticamente el QR si tiene el formato estándar
-    // La URL del QR es la que se está escaneando, pero AR.js puede trackear cualquier QR
-    // usando la librería de marcadores. Para mejor tracking, configuramos un marker de tipo 'barcode'
-    
+    // Crear escena A-Frame con AR.js que detecta QR
+    // Usamos un marker de tipo barcode que detecta cualquier QR
     const sceneHTML = `
         <a-scene id="arScene"
             embedded
@@ -451,12 +452,11 @@ function initARMode() {
             style="position:absolute;top:0;left:0;width:100%;height:100%;">
             
             <!-- Marcador QR - detecta cualquier QR estándar -->
-            <a-marker type="barcode" value="0" id="qrMarker" emitevents="true">
+            <a-marker type="barcode" value="0" id="qrMarker">
                 <a-entity id="arModelEntity"
                     gltf-model="${currentModelSrc}"
-                    scale="${transform.scale} ${transform.scale} ${transform.scale}"
-                    position="0 ${transform.posY} 0"
-                    rotation="0 ${transform.rotY} 0">
+                    scale="0.8 0.8 0.8"
+                    position="0 0 0">
                 </a-entity>
             </a-marker>
             
@@ -467,46 +467,37 @@ function initARMode() {
     container.innerHTML = sceneHTML;
     arSceneActive = true;
     
-    // Esperar a que la escena cargue y obtener referencia al modelo
+    // Actualizar estado cuando se encuentre/pierda el marcador
     setTimeout(() => {
         const marker = document.querySelector('#qrMarker');
-        const entity = document.querySelector('#arModelEntity');
-        if (entity) currentEntity = entity;
-        
-        // Eventos de tracking
         if (marker) {
             marker.addEventListener('markerFound', () => {
                 document.getElementById('arStatusText').innerHTML = '✅ QR detectado - Modelo anclado';
+                document.getElementById('arStatusText').style.background = 'rgba(5,150,105,0.9)';
             });
             marker.addEventListener('markerLost', () => {
                 document.getElementById('arStatusText').innerHTML = '🔍 Buscando marcador QR...';
+                document.getElementById('arStatusText').style.background = 'rgba(0,0,0,0.7)';
             });
         }
-    }, 1000);
+        
+        // Ocultar mensaje de carga después de un tiempo
+        setTimeout(() => {
+            const loadingMsg = container.querySelector('div[style*="position:absolute"]');
+            if (loadingMsg) loadingMsg.style.opacity = '0';
+        }, 2000);
+    }, 500);
     
-    // Cargar scripts de A-Frame y AR.js si no están
-    loadARScripts();
+    // Timeout para indicar que la cámara debería estar funcionando
+    setTimeout(() => {
+        const status = document.getElementById('arStatusText');
+        if (status && status.innerHTML.includes('Iniciando')) {
+            status.innerHTML = '🎥 Apunta la cámara al QR impreso';
+        }
+    }, 5000);
 }
 
-function loadARScripts() {
-    if (document.querySelector('script[src*="aframe.min.js"]')) {
-        return;
-    }
-    
-    const aframeScript = document.createElement('script');
-    aframeScript.src = 'https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js';
-    aframeScript.onload = () => {
-        const arjsScript = document.createElement('script');
-        arjsScript.src = 'https://cdn.jsdelivr.net/npm/ar.js@2.2.2/aframe/build/aframe-ar.min.js';
-        arjsScript.onload = () => {
-            console.log('AR.js cargado correctamente');
-        };
-        document.head.appendChild(arjsScript);
-    };
-    document.head.appendChild(aframeScript);
-}
-
-// Inicializar
+// Inicializar todo
 loadSavedModels();
 initARMode();
 </script>
