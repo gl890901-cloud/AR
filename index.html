@@ -278,8 +278,8 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('create')">✨ Crear Nuevo QR</button>
-            <button class="tab" onclick="switchTab('list')">📚 Mis Modelos</button>
+            <button class="tab active" id="tabCreateBtn">✨ Crear Nuevo QR</button>
+            <button class="tab" id="tabListBtn">📚 Mis Modelos</button>
         </div>
 
         <div id="createTab">
@@ -307,16 +307,16 @@
                     </div>
                 </div>
 
-                <button class="btn" onclick="loadPreview()">🔍 Previsualizar Modelo</button>
-                <button class="btn" onclick="generateARCode()" style="margin-top: 15px;">🎯 Generar Código AR</button>
+                <button class="btn" id="previewBtn">🔍 Previsualizar Modelo</button>
+                <button class="btn" id="generateBtn" style="margin-top: 15px;">🎯 Generar Código AR</button>
             </div>
 
             <div class="card" id="qrResultCard" style="display: none;">
                 <h2 style="margin-bottom: 20px; color: #333;">📱 Código QR para Realidad Aumentada</h2>
                 <div class="qr-result">
                     <div class="qr-box" id="qrcode"></div>
-                    <button class="btn btn-secondary" onclick="downloadQR()">💾 Descargar QR</button>
-                    <button class="btn" onclick="copyARLink()">🔗 Copiar enlace AR</button>
+                    <button class="btn btn-secondary" id="downloadQRBtn">💾 Descargar QR</button>
+                    <button class="btn" id="copyLinkBtn">🔗 Copiar enlace AR</button>
                     
                     <div class="info-box">
                         <strong>📌 Instrucciones:</strong><br>
@@ -334,7 +334,7 @@
                 <div id="modelList" class="model-list">
                     <p style="color: #999; text-align: center;">No hay modelos guardados.</p>
                 </div>
-                <button class="btn btn-secondary" onclick="clearAllModels()" style="margin-top: 20px;">🗑️ Limpiar biblioteca</button>
+                <button class="btn btn-secondary" id="clearAllBtn">🗑️ Limpiar biblioteca</button>
             </div>
         </div>
     </div>
@@ -349,36 +349,54 @@
         let savedModels = [];
         let previewScene, previewCamera, previewRenderer, previewControls, currentPreviewModel;
 
-        // Limpieza y bypass de CORS para URLs de GitHub utilizando proxy jsDelivr CDN
+        // Convertir URL de GitHub a URL raw usando jsDelivr CDN (solución CORS)
         function convertToRawUrl(url) {
             let rawUrl = url.trim();
+            
+            // Detectar si es URL de GitHub
             if (rawUrl.includes('github.com')) {
-                // Evita problemas de CORS transformando la URL tradicional o raw a jsDelivr CDN público
-                rawUrl = rawUrl
-                    .replace('raw.githubusercontent.com', 'github.com')
-                    .replace('github.com/', '')
-                    .replace('/blob/', '/');
+                // Limpiar la URL para el formato de jsDelivr
+                let cleanUrl = rawUrl
+                    .replace('https://github.com/', '')
+                    .replace('http://github.com/', '')
+                    .replace('raw.githubusercontent.com/', '');
                 
-                return `https://cdn.jsdelivr.net/gh/${rawUrl}`;
+                // Si tiene /blob/, lo removemos
+                cleanUrl = cleanUrl.replace('/blob/', '/');
+                
+                return `https://cdn.jsdelivr.net/gh/${cleanUrl}`;
             }
+            
             return rawUrl;
         }
 
-        // Inicializador del motor 3D interno de previsualización en la tarjeta del Manager
+        // Inicializar motor de previsualización
         function initPreviewEngine() {
             const container = document.getElementById('modelPreview');
-            if(!container || previewRenderer) return;
+            if(!container) return;
+            
+            if(previewRenderer) {
+                // Limpiar renderer existente
+                while(container.firstChild) container.removeChild(container.firstChild);
+                previewRenderer = null;
+            }
 
-            document.getElementById('previewPlaceholder').style.display = 'none';
+            const placeholder = document.getElementById('previewPlaceholder');
+            if(placeholder) placeholder.style.display = 'none';
 
             previewScene = new THREE.Scene();
             previewScene.background = new THREE.Color(0xededed);
+            previewScene.environment = null;
 
-            previewCamera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-            previewCamera.position.set(0, 1.5, 3);
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            previewCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            previewCamera.position.set(1, 1.5, 2);
+            previewCamera.lookAt(0, 0.5, 0);
 
-            previewRenderer = new THREE.WebGLRenderer({ antialias: true });
-            previewRenderer.setSize(container.clientWidth, container.clientHeight);
+            previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            previewRenderer.setSize(width, height);
             previewRenderer.setPixelRatio(window.devicePixelRatio);
             previewRenderer.shadowMap.enabled = true;
             container.appendChild(previewRenderer.domElement);
@@ -386,96 +404,124 @@
             previewControls = new OrbitControls(previewCamera, previewRenderer.domElement);
             previewControls.enableDamping = true;
             previewControls.dampingFactor = 0.05;
+            previewControls.target.set(0, 0.5, 0);
+            previewControls.enableZoom = true;
+            previewControls.zoomSpeed = 1.2;
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            // Luces
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             previewScene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(2, 5, 3);
+            directionalLight.castShadow = true;
+            directionalLight.receiveShadow = true;
+            previewScene.add(directionalLight);
+            
+            const fillLight = new THREE.PointLight(0x4466cc, 0.3);
+            fillLight.position.set(1, 1, 2);
+            previewScene.add(fillLight);
+            
+            const backLight = new THREE.PointLight(0xffaa66, 0.2);
+            backLight.position.set(-1, 1, -2);
+            previewScene.add(backLight);
 
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-            dirLight.position.set(5, 10, 7);
-            previewScene.add(dirLight);
-
-            const grid = new THREE.GridHelper(10, 10, 0x888888, 0xcccccc);
-            grid.position.y = -0.01;
-            previewScene.add(grid);
+            // Grid helper
+            const gridHelper = new THREE.GridHelper(5, 20, 0x888888, 0xcccccc);
+            gridHelper.position.y = -0.5;
+            previewScene.add(gridHelper);
+            
+            // Eje auxiliar opcional
+            // const axesHelper = new THREE.AxesHelper(1);
+            // previewScene.add(axesHelper);
 
             animatePreview();
         }
 
         function animatePreview() {
-            requestAnimationFrame(animatePreview);
-            if (previewControls) previewControls.update();
-            if (previewRenderer && previewScene && previewCamera) {
-                previewRenderer.render(previewScene, previewCamera);
+            function animate() {
+                requestAnimationFrame(animate);
+                if(previewControls) previewControls.update();
+                if(previewRenderer && previewScene && previewCamera) {
+                    previewRenderer.render(previewScene, previewCamera);
+                }
             }
+            animate();
         }
 
-        // Cargar Modelo en la Previsualización
+        // Cargar modelo para previsualización
         async function loadPreview() {
-            const url = document.getElementById('modelUrl').value.trim();
+            const urlInput = document.getElementById('modelUrl');
+            const url = urlInput.value.trim();
+            
             if (!url) {
                 showNotification('Ingresa una URL primero', 'error');
                 return;
             }
 
-            if (!url.match(/\.(glb|gltf)$/i) && !url.includes('gltf') && !url.includes('glb')) {
-                showNotification('El archivo debe ser un formato .glb o .gltf', 'error');
+            if (!url.match(/\.(glb|gltf)$/i) && !url.includes('.glb') && !url.includes('.gltf')) {
+                showNotification('El archivo debe ser formato .glb o .gltf', 'error');
                 return;
             }
 
             initPreviewEngine();
             
-            // Mostrar estado de carga temporal
-            const infoOverlay = document.createElement('div');
-            infoOverlay.id = 'loadingOverlay';
-            infoOverlay.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); display:flex; align-items:center; justify-content:center; font-weight:bold; color:#333;';
-            infoOverlay.textContent = '🔄 Descargando y procesando modelo...';
-            document.getElementById('modelPreview').appendChild(infoOverlay);
+            // Mostrar loading
+            const previewContainer = document.getElementById('modelPreview');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'previewLoading';
+            loadingDiv.textContent = '🔄 Cargando modelo 3D...';
+            loadingDiv.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.7); color:white; padding:10px 20px; border-radius:20px; z-index:10; font-size:14px;';
+            previewContainer.style.position = 'relative';
+            previewContainer.appendChild(loadingDiv);
 
-            if (currentPreviewModel) previewScene.remove(currentPreviewModel);
+            if (currentPreviewModel) {
+                previewScene.remove(currentPreviewModel);
+                currentPreviewModel = null;
+            }
 
-            const finalCORSUrl = convertToRawUrl(url);
+            const rawUrl = convertToRawUrl(url);
             const loader = new GLTFLoader();
-
-            loader.load(
-                finalCORSUrl,
-                (gltf) => {
-                    currentPreviewModel = gltf.scene;
-                    
-                    // Ajuste de escala y centrado automático
-                    const box = new THREE.Box3().setFromObject(currentPreviewModel);
-                    const size = box.getSize(new THREE.Vector3());
-                    const center = box.getCenter(new THREE.Vector3());
-                    
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const scale = 1.5 / maxDim;
-                    currentPreviewModel.scale.set(scale, scale, scale);
-                    
-                    // Reposicionar al centro del suelo
-                    box.setFromObject(currentPreviewModel);
-                    box.getCenter(center);
-                    currentPreviewModel.position.sub(center);
-                    currentPreviewModel.position.y -= box.min.y; 
-
-                    previewScene.add(currentPreviewModel);
-                    
-                    previewControls.target.set(0, 0.5, 0);
-                    previewCamera.position.set(0, 1, 2.5);
-                    
-                    const overlay = document.getElementById('loadingOverlay');
-                    if(overlay) overlay.remove();
-                    showNotification('Modelo cargado exitosamente', 'success');
-                },
-                undefined,
-                (error) => {
-                    console.error(error);
-                    const overlay = document.getElementById('loadingOverlay');
-                    if(overlay) overlay.remove();
-                    showNotification('Error al parsear el modelo 3D. Revisa el CORS o archivo.', 'error');
-                }
-            );
+            
+            loader.load(rawUrl, (gltf) => {
+                currentPreviewModel = gltf.scene;
+                
+                // Calcular bounding box para centrar
+                const box = new THREE.Box3().setFromObject(currentPreviewModel);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                
+                // Escalar para que encaje
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 1.2 / maxDim;
+                currentPreviewModel.scale.set(scale, scale, scale);
+                
+                // Reposicionar
+                currentPreviewModel.position.x = -center.x * scale;
+                currentPreviewModel.position.y = -center.y * scale;
+                currentPreviewModel.position.z = -center.z * scale;
+                
+                previewScene.add(currentPreviewModel);
+                
+                // Ajustar cámara
+                const newCenter = new THREE.Vector3(0, 0.5, 0);
+                previewControls.target.copy(newCenter);
+                previewCamera.position.set(1, 1, 2);
+                previewCamera.lookAt(newCenter);
+                previewControls.update();
+                
+                const loadingEl = document.getElementById('previewLoading');
+                if(loadingEl) loadingEl.remove();
+                showNotification('Modelo cargado correctamente', 'success');
+            }, undefined, (error) => {
+                console.error('Error loading model:', error);
+                const loadingEl = document.getElementById('previewLoading');
+                if(loadingEl) loadingEl.remove();
+                showNotification('Error al cargar el modelo. Verifica la URL y que el archivo sea accesible públicamente.', 'error');
+            });
         }
 
-        // Generar Código QR Válido
+        // Generar código QR
         function generateARCode() {
             const modelUrl = document.getElementById('modelUrl').value.trim();
             const modelName = document.getElementById('modelName').value.trim();
@@ -491,104 +537,39 @@
             const qrDiv = document.getElementById('qrcode');
             qrDiv.innerHTML = '';
             
-            new QRCode(qrDiv, {
-                text: viewerUrl,
-                width: 220,
-                height: 220,
-                correctLevel: QRCode.CorrectLevel.H
-            });
+            try {
+                new QRCode(qrDiv, {
+                    text: viewerUrl,
+                    width: 220,
+                    height: 220,
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            } catch(e) {
+                showNotification('Error generando QR', 'error');
+                return;
+            }
 
             document.getElementById('qrResultCard').style.display = 'block';
             document.getElementById('qrResultCard').scrollIntoView({ behavior: 'smooth' });
 
             const nameToSave = modelName || 'Modelo sin título';
             
-            // Guardar en almacenamiento Local
+            // Guardar en localStorage si no existe
             if (!savedModels.some(m => m.url === rawUrl)) {
                 savedModels.unshift({
                     url: rawUrl,
                     name: nameToSave,
-                    date: new Date().toISOString()
+                    date: new Date().toISOString(),
+                    originalUrl: modelUrl
                 });
-                localStorage.setItem('ar_models_v2', JSON.stringify(savedModels));
+                localStorage.setItem('ar_models_v3', JSON.stringify(savedModels));
                 updateModelList();
             }
             
             showNotification('¡Código QR de Realidad Aumentada creado!', 'success');
         }
 
-        // Exponer funciones necesarias al Objeto Global window para responder al HTML nativo
-        window.loadPreview = loadPreview;
-        window.generateARCode = generateARCode;
-        
-        window.switchTab = function(tab) {
-            const createTab = document.getElementById('createTab');
-            const listTab = document.getElementById('listTab');
-            const tabs = document.querySelectorAll('.tab');
-            
-            tabs.forEach(t => t.classList.remove('active'));
-            
-            if (tab === 'create') {
-                createTab.style.display = 'block';
-                listTab.style.display = 'none';
-                tabs[0].classList.add('active');
-            } else {
-                createTab.style.display = 'none';
-                listTab.style.display = 'block';
-                tabs[1].classList.add('active');
-                updateModelList();
-            }
-        };
-
-        window.deleteModel = function(index) {
-            if (confirm('¿Eliminar este modelo?')) {
-                savedModels.splice(index, 1);
-                localStorage.setItem('ar_models_v2', JSON.stringify(savedModels));
-                updateModelList();
-                showNotification('Modelo eliminado', 'info');
-            }
-        };
-
-        window.clearAllModels = function() {
-            if (confirm('¿Vaciar toda la biblioteca de modelos?')) {
-                savedModels = [];
-                localStorage.setItem('ar_models_v2', JSON.stringify(savedModels));
-                updateModelList();
-                showNotification('Biblioteca vaciada', 'info');
-            }
-        };
-
-        window.loadModelToCreate = function(index) {
-            const model = savedModels[index];
-            document.getElementById('modelUrl').value = model.url;
-            document.getElementById('modelName').value = model.name;
-            window.switchTab('create');
-            loadPreview();
-        };
-
-        window.downloadQR = function() {
-            const img = document.querySelector('#qrcode img');
-            if (img) {
-                const link = document.createElement('a');
-                link.download = `QR-AR-Model-${Date.now()}.png`;
-                link.href = img.src;
-                link.click();
-                showNotification('Descarga iniciada', 'success');
-            } else {
-                showNotification('Genera un código QR primero', 'error');
-            }
-        };
-
-        window.copyARLink = function() {
-            const modelUrl = document.getElementById('modelUrl').value.trim();
-            const rawUrl = convertToRawUrl(modelUrl);
-            const viewerUrl = `${window.location.origin}${window.location.pathname}?mode=viewer&model=${encodeURIComponent(rawUrl)}`;
-            
-            navigator.clipboard.writeText(viewerUrl).then(() => {
-                showNotification('Enlace copiado al portapapeles', 'success');
-            });
-        };
-
+        // Actualizar lista de modelos
         function updateModelList() {
             const listContainer = document.getElementById('modelList');
             if (!listContainer) return;
@@ -599,14 +580,91 @@
             }
 
             listContainer.innerHTML = savedModels.map((model, index) => `
-                <div class="model-item" onclick="loadModelToCreate('${index}')">
+                <div class="model-item" data-index="${index}">
                     <div class="model-info">
                         <div class="model-name">${escapeHtml(model.name)}</div>
-                        <div class="model-url">${escapeHtml(model.url)}</div>
+                        <div class="model-url">${escapeHtml(model.originalUrl || model.url)}</div>
                     </div>
-                    <button class="delete-btn" onclick="event.stopPropagation(); deleteModel(${index})">🗑️</button>
+                    <button class="delete-btn" data-index="${index}">🗑️</button>
                 </div>
             `).join('');
+            
+            // Agregar event listeners
+            document.querySelectorAll('.model-item').forEach(item => {
+                const idx = parseInt(item.dataset.index);
+                item.addEventListener('click', (e) => {
+                    if(e.target.classList.contains('delete-btn')) return;
+                    loadModelToCreate(idx);
+                });
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(btn.dataset.index);
+                    deleteModel(idx);
+                });
+            });
+        }
+
+        function loadModelToCreate(index) {
+            const model = savedModels[index];
+            document.getElementById('modelUrl').value = model.originalUrl || model.url;
+            document.getElementById('modelName').value = model.name;
+            // Cambiar a pestaña crear
+            document.getElementById('createTab').style.display = 'block';
+            document.getElementById('listTab').style.display = 'none';
+            document.getElementById('tabCreateBtn').classList.add('active');
+            document.getElementById('tabListBtn').classList.remove('active');
+            // Opcional: cargar preview automáticamente
+            setTimeout(() => loadPreview(), 100);
+        }
+
+        function deleteModel(index) {
+            if (confirm('¿Eliminar este modelo de la biblioteca?')) {
+                savedModels.splice(index, 1);
+                localStorage.setItem('ar_models_v3', JSON.stringify(savedModels));
+                updateModelList();
+                showNotification('Modelo eliminado', 'info');
+            }
+        }
+
+        function clearAllModels() {
+            if (confirm('¿Eliminar TODOS los modelos guardados?')) {
+                savedModels = [];
+                localStorage.setItem('ar_models_v3', JSON.stringify(savedModels));
+                updateModelList();
+                showNotification('Biblioteca vaciada', 'info');
+            }
+        }
+
+        function downloadQR() {
+            const img = document.querySelector('#qrcode img');
+            if (img) {
+                const link = document.createElement('a');
+                link.download = `QR-AR-${Date.now()}.png`;
+                link.href = img.src;
+                link.click();
+                showNotification('QR descargado', 'success');
+            } else {
+                showNotification('Primero genera un código QR', 'error');
+            }
+        }
+
+        function copyARLink() {
+            const modelUrl = document.getElementById('modelUrl').value.trim();
+            if(!modelUrl) {
+                showNotification('Primero ingresa un modelo', 'error');
+                return;
+            }
+            const rawUrl = convertToRawUrl(modelUrl);
+            const viewerUrl = `${window.location.origin}${window.location.pathname}?mode=viewer&model=${encodeURIComponent(rawUrl)}`;
+            
+            navigator.clipboard.writeText(viewerUrl).then(() => {
+                showNotification('Enlace copiado al portapapeles', 'success');
+            }).catch(() => {
+                showNotification('Error al copiar', 'error');
+            });
         }
 
         function escapeHtml(text) {
@@ -623,11 +681,58 @@
             setTimeout(() => { notification.style.display = 'none'; }, 3500);
         }
 
-        // Carga Inicial desde Memoria Local
-        const stored = localStorage.getItem('ar_models_v2');
-        if (stored) { savedModels = JSON.parse(stored); }
-    </script>
+        function switchTab(tabName) {
+            const createTab = document.getElementById('createTab');
+            const listTab = document.getElementById('listTab');
+            const createBtn = document.getElementById('tabCreateBtn');
+            const listBtn = document.getElementById('tabListBtn');
+            
+            if(tabName === 'create') {
+                createTab.style.display = 'block';
+                listTab.style.display = 'none';
+                createBtn.classList.add('active');
+                listBtn.classList.remove('active');
+            } else {
+                createTab.style.display = 'none';
+                listTab.style.display = 'block';
+                createBtn.classList.remove('active');
+                listBtn.classList.add('active');
+                updateModelList();
+            }
+        }
 
+        // Cargar datos guardados
+        const stored = localStorage.getItem('ar_models_v3');
+        if (stored) { 
+            savedModels = JSON.parse(stored);
+        } else {
+            savedModels = [];
+        }
+
+        // Configurar eventos después de cargar
+        document.getElementById('previewBtn').addEventListener('click', loadPreview);
+        document.getElementById('generateBtn').addEventListener('click', generateARCode);
+        document.getElementById('downloadQRBtn').addEventListener('click', downloadQR);
+        document.getElementById('copyLinkBtn').addEventListener('click', copyARLink);
+        document.getElementById('clearAllBtn').addEventListener('click', clearAllModels);
+        document.getElementById('tabCreateBtn').addEventListener('click', () => switchTab('create'));
+        document.getElementById('tabListBtn').addEventListener('click', () => switchTab('list'));
+        
+        // Inicializar UI
+        switchTab('create');
+        
+        // Redimensionar preview al cambiar tamaño
+        window.addEventListener('resize', () => {
+            if(previewRenderer && previewCamera) {
+                const container = document.getElementById('modelPreview');
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                previewCamera.aspect = width / height;
+                previewCamera.updateProjectionMatrix();
+                previewRenderer.setSize(width, height);
+            }
+        });
+    </script>
 
     <script type="module">
         import * as THREE from 'three';
@@ -640,173 +745,157 @@
             const modelUrl = urlParams.get('model');
 
             if (mode === 'viewer' && modelUrl) {
-                // Inyectar Estructura limpia y optimizada para pantallas móviles (Visor Fullscreen)
+                // Limpiar y mostrar visor AR
                 document.body.innerHTML = `
-                    <div id="ar-viewer-info" style="position:fixed; top:15px; left:15px; right:15px; background:rgba(0,0,0,0.8); color:white; padding:12px; border-radius:10px; font-size:13px; text-align:center; z-index:10000; font-family:sans-serif; pointer-events:none;">
+                    <div id="ar-viewer-info" style="position:fixed; top:15px; left:15px; right:15px; background:rgba(0,0,0,0.85); color:white; padding:12px 16px; border-radius:12px; font-size:13px; text-align:center; z-index:10000; font-family:sans-serif; backdrop-filter:blur(8px); pointer-events:none;">
                         🔄 Inicializando visualizador 3D...
                     </div>
-                    <div style="position:fixed; bottom:25px; left:0; width:100%; display:flex; justify-content:center; gap:15px; z-index:10000;">
-                        <button id="arTriggerBtn" style="background:linear-gradient(135deg, #4299e1 0%, #3182ce 100%); color:white; border:none; padding:14px 24px; font-weight:bold; border-radius:30px; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.3); cursor:pointer;">📷 Activar Realidad Aumentada</button>
-                        <button id="resetViewBtn" style="background:#4a5568; color:white; border:none; padding:14px 20px; font-weight:bold; border-radius:30px; font-size:14px; cursor:pointer;">🔄 Reset</button>
+                    <div style="position:fixed; bottom:25px; left:0; width:100%; display:flex; justify-content:center; gap:12px; z-index:10000; padding:0 16px; box-sizing:border-box;">
+                        <button id="arTriggerBtn" style="flex:1; max-width:180px; background:linear-gradient(135deg, #4299e1, #2b6cb0); color:white; border:none; padding:12px 20px; font-weight:bold; border-radius:40px; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.3); cursor:pointer;">📷 AR</button>
+                        <button id="resetViewBtn" style="flex:1; max-width:100px; background:#4a5568; color:white; border:none; padding:12px 16px; font-weight:bold; border-radius:40px; font-size:14px; cursor:pointer;">↺ Reset</button>
                     </div>
                 `;
 
-                launchFullViewer(decodeURIComponent(modelUrl));
+                launchARViewer(decodeURIComponent(modelUrl));
             }
         }
 
-        function launchFullViewer(targetModelUrl) {
-            let scene, camera, renderer, controls, object3D;
-            let streamVideo = null;
-            let arEnabled = false;
+        async function launchARViewer(targetModelUrl) {
+            let scene, camera, renderer, controls, model3D;
+            let videoStream = null;
+            let arActive = false;
 
-            const infoBox = document.getElementById('ar-viewer-info');
+            const infoDiv = document.getElementById('ar-viewer-info');
 
-            // Escena base
+            // Escena
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111118);
+            scene.background = new THREE.Color(0x111122);
+            scene.fog = new THREE.FogExp2(0x111122, 0.008);
 
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 1.5, 4);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.2, 3.5);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            controls.target.set(0, 0.5, 0);
+            controls.dampingFactor = 0.06;
+            controls.target.set(0, 0.6, 0);
+            controls.rotateSpeed = 1.5;
+            controls.zoomSpeed = 1.2;
 
-            // Luces equilibradas para visualización móvil
-            const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+            // Luces mejoradas
+            const ambient = new THREE.AmbientLight(0xffffff, 0.65);
             scene.add(ambient);
+            const mainLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
+            mainLight.position.set(3, 5, 2);
+            mainLight.castShadow = true;
+            scene.add(mainLight);
+            const fillLight = new THREE.PointLight(0x88aaff, 0.4);
+            fillLight.position.set(1, 2, 3);
+            scene.add(fillLight);
+            const backLight = new THREE.PointLight(0xffaa66, 0.3);
+            backLight.position.set(-1, 1.5, -2);
+            scene.add(backLight);
 
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-            dirLight.position.set(5, 12, 8);
-            scene.add(dirLight);
+            // Grid referencia
+            const grid = new THREE.GridHelper(4, 20, 0x88aaff, 0x335588);
+            grid.position.y = -0.6;
+            scene.add(grid);
 
-            // Carga del modelo 3D GLTF usando la URL procesada sin CORS
+            // Cargar modelo
             const loader = new GLTFLoader();
-            infoBox.textContent = "📥 Descargando recurso 3D desde GitHub...";
+            infoDiv.innerHTML = "📥 Cargando modelo 3D...";
+            
+            loader.load(targetModelUrl, (gltf) => {
+                model3D = gltf.scene;
+                
+                const box = new THREE.Box3().setFromObject(model3D);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                const scale = 1.0 / Math.max(size.x, size.y, size.z);
+                model3D.scale.set(scale, scale, scale);
+                model3D.position.x = -center.x * scale;
+                model3D.position.y = -center.y * scale;
+                model3D.position.z = -center.z * scale;
+                
+                scene.add(model3D);
+                infoDiv.innerHTML = "✅ Modelo listo. Usa 1 dedo (rotar) / 2 dedos (zoom)";
+                
+                setTimeout(() => {
+                    infoDiv.style.opacity = "0.7";
+                }, 3000);
+            }, undefined, (err) => {
+                console.error(err);
+                infoDiv.innerHTML = "❌ Error: No se pudo cargar el modelo. Verifica URL pública.";
+                infoDiv.style.background = "rgba(220,38,38,0.9)";
+            });
 
-            loader.load(
-                targetModelUrl,
-                (gltf) => {
-                    object3D = gltf.scene;
-
-                    // Centrar y auto-ajustar escala de forma inteligente
-                    const box = new THREE.Box3().setFromObject(object3D);
-                    const size = box.getSize(new THREE.Vector3());
-                    const center = box.getCenter(new THREE.Vector3());
-                    
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    // Forzar un tamaño óptimo para proyección en espacio real (aprox 1 metro de alto estándar)
-                    const scaleFactor = 1.2 / maxDim;
-                    object3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                    
-                    // Reposicionar pivote inferior
-                    box.setFromObject(object3D);
-                    box.getCenter(center);
-                    object3D.position.sub(center);
-                    object3D.position.y -= box.min.y;
-
-                    scene.add(object3D);
-                    infoBox.innerHTML = "✅ Modelo cargado con éxito.<br>Usa 1 dedo para rotar, 2 para hacer zoom.";
-                },
-                undefined,
-                (error) => {
-                    console.error(error);
-                    infoBox.style.background = "#e53e3e";
-                    infoBox.textContent = "❌ Error crítico: No se pudo renderizar el modelo. Verifica que el repositorio de GitHub sea público.";
-                }
-            );
-
-            // Bucle de renderizado por cuadro
-            function renderLoop() {
-                requestAnimationFrame(renderLoop);
+            function animate() {
+                requestAnimationFrame(animate);
                 controls.update();
                 renderer.render(scene, camera);
             }
-            renderLoop();
+            animate();
 
-            // Lógica para activar la cámara de fondo (Simulación AR nativa de alto rendimiento)
-            async function startARCamera() {
-                if (arEnabled) return;
-
-                infoBox.textContent = "🎥 Solicitando acceso a la cámara trasera...";
-                
-                const constraints = {
-                    video: {
-                        facingMode: { exact: "environment" }
-                    },
-                    audio: false
-                };
-
+            // AR con cámara trasera
+            async function startAR() {
+                if (arActive) return;
+                infoDiv.innerHTML = "🎥 Solicitando cámara...";
                 try {
-                    streamVideo = await navigator.mediaDevices.getUserMedia(constraints);
-                } catch (e) {
-                    // Fallback para dispositivos de escritorio o sin cámara 'environment' exacta
-                    try {
-                        streamVideo = await navigator.mediaDevices.getUserMedia({ video: true });
-                    } catch(err) {
-                        infoBox.textContent = "❌ Error: Permiso de cámara denegado o no disponible.";
-                        return;
-                    }
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { exact: "environment" } }
+                    });
+                    videoStream = stream;
+                    const videoElem = document.createElement('video');
+                    videoElem.id = "ar-video-bg";
+                    videoElem.autoplay = true;
+                    videoElem.playsInline = true;
+                    videoElem.srcObject = stream;
+                    videoElem.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; object-fit:cover; z-index:-1; pointer-events:none;";
+                    document.body.appendChild(videoElem);
+                    
+                    renderer.setClearColor(0x000000, 0);
+                    scene.background = null;
+                    arActive = true;
+                    infoDiv.innerHTML = "🎯 Modo AR activo. El modelo se posa sobre superficies.";
+                    document.getElementById('arTriggerBtn').textContent = "🛑 Desactivar AR";
+                } catch(e) {
+                    infoDiv.innerHTML = "❌ No se pudo acceder a la cámara trasera.";
                 }
-
-                // Generar elemento de video responsivo en segundo plano
-                const videoElement = document.createElement('video');
-                videoElement.id = 'webcamBackgroundVideo';
-                videoElement.autoplay = true;
-                videoElement.playsInline = true;
-                videoElement.srcObject = streamVideo;
-                
-                videoElement.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; object-fit:cover; z-index:-100; pointer-events:none;';
-                document.body.appendChild(videoElement);
-
-                // Hacer transparente el fondo del motor de renderizado 3D para ver el video
-                renderer.setClearColor(0x000000, 0);
-                scene.background = null;
-                arEnabled = true;
-
-                infoBox.innerHTML = "🎯 ¡Modo AR Activo! Mueve tu dispositivo.<br>El modelo está fijo sobre el eje central.";
-                document.getElementById('arTriggerBtn').textContent = "🛑 Desactivar Cámara";
             }
 
-            function stopARCamera() {
-                if (!arEnabled) return;
-                
-                const video = document.getElementById('webcamBackgroundVideo');
-                if (video) video.remove();
-
-                if (streamVideo) {
-                    streamVideo.getTracks().forEach(track => track.stop());
+            function stopAR() {
+                if (!arActive) return;
+                const videoBg = document.getElementById('ar-video-bg');
+                if(videoBg) videoBg.remove();
+                if(videoStream) {
+                    videoStream.getTracks().forEach(t => t.stop());
+                    videoStream = null;
                 }
-
-                renderer.setClearColor(0x111118, 1);
-                scene.background = new THREE.Color(0x111118);
-                arEnabled = false;
-
-                infoBox.textContent = "Visor normal activado.";
-                document.getElementById('arTriggerBtn').textContent = "📷 Activar Realidad Aumentada";
+                renderer.setClearColor(0x111122, 1);
+                scene.background = new THREE.Color(0x111122);
+                arActive = false;
+                infoDiv.innerHTML = "Modo normal. Presiona AR para cámara.";
+                document.getElementById('arTriggerBtn').textContent = "📷 Activar AR";
             }
 
-            // Listeners de los botones del visor
             document.getElementById('arTriggerBtn').onclick = () => {
-                if (!arEnabled) startARCamera(); else stopARCamera();
+                if(arActive) stopAR();
+                else startAR();
             };
-
+            
             document.getElementById('resetViewBtn').onclick = () => {
-                camera.position.set(0, 1.5, 4);
-                controls.target.set(0, 0.5, 0);
-                if (object3D) {
-                    object3D.rotation.set(0, 0, 0);
-                }
+                camera.position.set(0, 1.2, 3.5);
+                controls.target.set(0, 0.6, 0);
+                controls.update();
+                if(model3D) model3D.rotation.set(0, 0, 0);
             };
 
-            // Ajustar responsive si el usuario cambia el celular de posición horizontal/vertical
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
@@ -814,7 +903,6 @@
             });
         }
 
-        // Correr enrutador de forma inmediata
         checkARViewerRoute();
     </script>
 </body>
